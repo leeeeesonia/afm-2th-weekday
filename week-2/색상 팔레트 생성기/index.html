@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Palette Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .toast-enter { animation: slideUp 0.3s ease-out; }
+    .toast-exit { animation: slideDown 0.3s ease-in forwards; }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes slideDown {
+      from { transform: translateY(0); opacity: 1; }
+      to { transform: translateY(100%); opacity: 0; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .fade-in { animation: fadeIn 0.2s ease-out; }
+    .color-stripe { transition: flex 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    .color-stripe:hover { flex: 1.3 !important; }
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      cursor: pointer;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } = React;
+
+    // ========================================
+    // Color Utility Functions
+    // ========================================
+    function hexToHSL(hex) {
+      let r = parseInt(hex.slice(1, 3), 16) / 255;
+      let g = parseInt(hex.slice(3, 5), 16) / 255;
+      let b = parseInt(hex.slice(5, 7), 16) / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+      return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+    }
+
+    function hslToHex(h, s, l) {
+      h = ((h % 360) + 360) % 360;
+      s = Math.max(0, Math.min(100, s)) / 100;
+      l = Math.max(0, Math.min(100, l)) / 100;
+      const a = s * Math.min(l, 1 - l);
+      const f = (n) => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    function hexToRGB(hex) {
+      return {
+        r: parseInt(hex.slice(1, 3), 16),
+        g: parseInt(hex.slice(3, 5), 16),
+        b: parseInt(hex.slice(5, 7), 16)
+      };
+    }
+
+    function getContrastColor(hex) {
+      const { r, g, b } = hexToRGB(hex);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.6 ? '#1a1a2e' : '#ffffff';
+    }
+
+    function randomHex() {
+      return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+    }
+
+    function randomInRange(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // ========================================
+    // Palette Generation by Harmony Mode
+    // ========================================
+    function generatePalette(mode, baseHex, locked) {
+      const base = hexToHSL(baseHex);
+      let colors = [];
+
+      switch (mode) {
+        case 'monochromatic':
+          colors = [
+            hslToHex(base.h, base.s, Math.max(10, base.l - 30)),
+            hslToHex(base.h, base.s, Math.max(15, base.l - 15)),
+            baseHex,
+            hslToHex(base.h, base.s, Math.min(85, base.l + 15)),
+            hslToHex(base.h, base.s, Math.min(95, base.l + 30)),
+          ];
+          break;
+        case 'analogous':
+          colors = [
+            hslToHex(base.h - 30, base.s, base.l),
+            hslToHex(base.h - 15, base.s, base.l),
+            baseHex,
+            hslToHex(base.h + 15, base.s, base.l),
+            hslToHex(base.h + 30, base.s, base.l),
+          ];
+          break;
+        case 'complementary':
+          colors = [
+            hslToHex(base.h, base.s, Math.max(20, base.l - 15)),
+            baseHex,
+            hslToHex(base.h, base.s, Math.min(85, base.l + 15)),
+            hslToHex(base.h + 180, base.s, Math.max(20, base.l - 10)),
+            hslToHex(base.h + 180, base.s, base.l),
+          ];
+          break;
+        case 'triadic':
+          colors = [
+            baseHex,
+            hslToHex(base.h, base.s, Math.min(85, base.l + 20)),
+            hslToHex(base.h + 120, base.s, base.l),
+            hslToHex(base.h + 240, base.s, base.l),
+            hslToHex(base.h + 240, base.s, Math.min(85, base.l + 20)),
+          ];
+          break;
+        case 'tetradic':
+          colors = [
+            baseHex,
+            hslToHex(base.h + 90, base.s, base.l),
+            hslToHex(base.h + 180, base.s, base.l),
+            hslToHex(base.h + 270, base.s, base.l),
+            hslToHex(base.h + 45, base.s, Math.min(85, base.l + 15)),
+          ];
+          break;
+        default: // random
+          colors = Array.from({ length: 5 }, () => {
+            const h = randomInRange(0, 360);
+            const s = randomInRange(40, 90);
+            const l = randomInRange(30, 70);
+            return hslToHex(h, s, l);
+          });
+      }
+
+      return colors.map((c, i) => locked[i] ? locked[i] : c);
+    }
+
+    // ========================================
+    // Toast Notification Component
+    // ========================================
+    function Toast({ message, visible }) {
+      if (!message) return null;
+      return (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-2xl
+          bg-gray-900 text-white text-sm font-medium mono ${visible ? 'toast-enter' : 'toast-exit'}`}>
+          {message}
+        </div>
+      );
+    }
+
+    // ========================================
+    // Modal Component
+    // ========================================
+    function Modal({ isOpen, onClose, title, children }) {
+      if (!isOpen) return null;
+      return (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4"
+             onClick={onClose}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-auto fade-in"
+               onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
+              <button onClick={onClose}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-500">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5">{children}</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Icons (SVG)
+    // ========================================
+    const Icons = {
+      Lock: () => (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+        </svg>
+      ),
+      Unlock: () => (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/>
+        </svg>
+      ),
+      Copy: () => (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+      ),
+      Save: () => (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+        </svg>
+      ),
+      Export: () => (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      ),
+      Shuffle: () => (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>
+        </svg>
+      ),
+      Bookmark: () => (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+        </svg>
+      ),
+      Trash: () => (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+        </svg>
+      ),
+      ChevronDown: () => (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      ),
+    };
+
+    // ========================================
+    // Color Stripe Component
+    // ========================================
+    function ColorStripe({ color, locked, onToggleLock, onCopy, showToast }) {
+      const [showFormats, setShowFormats] = useState(false);
+      const contrast = getContrastColor(color);
+      const hsl = hexToHSL(color);
+      const rgb = hexToRGB(color);
+      const dimContrast = contrast === '#ffffff' ? 'rgba(255,255,255,0.6)' : 'rgba(26,26,46,0.5)';
+
+      const formats = {
+        HEX: color.toUpperCase(),
+        RGB: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
+        HSL: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`,
+      };
+
+      const handleCopy = (format) => {
+        navigator.clipboard.writeText(formats[format]).then(() => {
+          showToast(`${format} copied: ${formats[format]}`);
+        });
+      };
+
+      return (
+        <div className="color-stripe relative flex flex-col items-center justify-center gap-3 select-none"
+             style={{ flex: 1, backgroundColor: color, transition: 'background-color 0.4s ease' }}>
+
+          {/* Lock Button */}
+          <button onClick={onToggleLock}
+                  className="absolute top-4 md:top-6 right-4 md:right-auto w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-110"
+                  style={{
+                    color: contrast,
+                    backgroundColor: locked ? (contrast === '#ffffff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)') : 'transparent',
+                  }}
+                  title={locked ? '잠금 해제' : '잠금'}>
+            {locked ? <Icons.Lock /> : <Icons.Unlock />}
+          </button>
+
+          {/* HEX Code */}
+          <button onClick={() => handleCopy('HEX')}
+                  className="mono text-xl md:text-2xl font-medium tracking-wider hover:scale-105 transition-transform cursor-pointer"
+                  style={{ color: contrast }}
+                  title="HEX 복사">
+            {color.toUpperCase()}
+          </button>
+
+          {/* Format Toggle */}
+          <button onClick={() => setShowFormats(!showFormats)}
+                  className="flex items-center gap-1 text-xs font-medium tracking-wide uppercase opacity-70 hover:opacity-100 transition-opacity"
+                  style={{ color: contrast }}>
+            다른 형식 <Icons.ChevronDown />
+          </button>
+
+          {/* Other Formats */}
+          {showFormats && (
+            <div className="flex flex-col gap-1.5 fade-in">
+              {Object.entries(formats).filter(([k]) => k !== 'HEX').map(([format, value]) => (
+                <button key={format}
+                        onClick={() => handleCopy(format)}
+                        className="mono text-xs px-3 py-1.5 rounded-lg hover:scale-105 transition-all cursor-pointer flex items-center gap-2"
+                        style={{ color: contrast, backgroundColor: contrast === '#ffffff' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)' }}>
+                  <span className="opacity-60 text-[10px] font-semibold">{format}</span>
+                  <span>{value}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Color name hint */}
+          <span className="absolute bottom-4 text-[10px] mono tracking-widest uppercase opacity-40"
+                style={{ color: contrast }}>
+            H{hsl.h} S{hsl.s} L{hsl.l}
+          </span>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Saved Palettes Panel
+    // ========================================
+    function SavedPalettes({ isOpen, onClose, savedPalettes, onLoad, onDelete }) {
+      return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Saved Palettes">
+          {savedPalettes.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <div className="text-4xl mb-3">*</div>
+              <p className="text-sm">저장된 팔레트가 없습니다</p>
+              <p className="text-xs mt-1 text-gray-300">마음에 드는 팔레트를 저장해보세요</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[50vh] overflow-auto">
+              {savedPalettes.map((palette, idx) => (
+                <div key={idx} className="border border-gray-100 rounded-xl p-3 hover:border-gray-200 transition-colors">
+                  <div className="flex items-center gap-1 mb-2">
+                    {palette.colors.map((c, i) => (
+                      <div key={i} className="flex-1 h-10 first:rounded-l-lg last:rounded-r-lg"
+                           style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400 mono">
+                      {palette.mode} | {palette.date}
+                    </span>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => onLoad(palette)}
+                              className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium">
+                        Load
+                      </button>
+                      <button onClick={() => onDelete(idx)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                        <Icons.Trash />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
+    // ========================================
+    // Export Modal
+    // ========================================
+    function ExportModal({ isOpen, onClose, colors, showToast }) {
+      const [format, setFormat] = useState('css');
+
+      const exports = {
+        css: `:root {\n${colors.map((c, i) => `  --color-${i + 1}: ${c};`).join('\n')}\n}`,
+        tailwind: `// tailwind.config.js\nmodule.exports = {\n  theme: {\n    extend: {\n      colors: {\n        palette: {\n${colors.map((c, i) => `          '${i + 1}': '${c}',`).join('\n')}\n        }\n      }\n    }\n  }\n}`,
+        json: JSON.stringify({ palette: colors.map((c, i) => ({ id: i + 1, hex: c, rgb: hexToRGB(c), hsl: hexToHSL(c) })) }, null, 2),
+      };
+
+      const handleCopy = () => {
+        navigator.clipboard.writeText(exports[format]).then(() => {
+          showToast('Copied to clipboard');
+        });
+      };
+
+      return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Export Palette">
+          <div className="flex gap-2 mb-4">
+            {[
+              { key: 'css', label: 'CSS Variables' },
+              { key: 'tailwind', label: 'Tailwind' },
+              { key: 'json', label: 'JSON' },
+            ].map(f => (
+              <button key={f.key}
+                      onClick={() => setFormat(f.key)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        format === f.key
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs mono overflow-auto max-h-64 text-gray-700 leading-relaxed">
+            {exports[format]}
+          </pre>
+          <button onClick={handleCopy}
+                  className="mt-4 w-full py-2.5 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-700 transition-colors flex items-center justify-center gap-2">
+            <Icons.Copy /> Copy to Clipboard
+          </button>
+        </Modal>
+      );
+    }
+
+    // ========================================
+    // Toolbar Component
+    // ========================================
+    function Toolbar({ mode, setMode, baseColor, setBaseColor, onGenerate, onSave, onShowSaved, onShowExport, savedCount }) {
+      const modes = [
+        { key: 'random', label: 'Random' },
+        { key: 'monochromatic', label: 'Mono' },
+        { key: 'analogous', label: 'Analogous' },
+        { key: 'complementary', label: 'Comple' },
+        { key: 'triadic', label: 'Triadic' },
+        { key: 'tetradic', label: 'Tetradic' },
+      ];
+
+      return (
+        <div className="fixed top-0 left-0 right-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200/50">
+          <div className="flex items-center justify-between px-3 md:px-6 h-14 md:h-16 max-w-[1800px] mx-auto">
+            {/* Left: Title + Mode */}
+            <div className="flex items-center gap-2 md:gap-4">
+              <h1 className="text-sm md:text-base font-bold text-gray-800 hidden sm:block tracking-tight">
+                Palette<span className="text-gray-300 font-normal">.gen</span>
+              </h1>
+
+              {/* Mode Selector */}
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+                {modes.map(m => (
+                  <button key={m.key}
+                          onClick={() => setMode(m.key)}
+                          className={`px-2 md:px-3 py-1.5 rounded-md text-[10px] md:text-xs font-medium transition-all ${
+                            mode === m.key
+                              ? 'bg-white shadow-sm text-gray-900'
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1.5 md:gap-2">
+              {/* Base Color Picker */}
+              <div className="relative w-8 h-8 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-gray-400 transition-colors">
+                <input type="color" value={baseColor} onChange={e => setBaseColor(e.target.value)}
+                       className="absolute inset-0 w-full h-full cursor-pointer" title="Base Color" />
+              </div>
+
+              {/* Generate */}
+              <button onClick={onGenerate}
+                      className="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-colors"
+                      title="Generate (Space)">
+                <Icons.Shuffle />
+                <span className="hidden md:inline">Generate</span>
+              </button>
+
+              {/* Save */}
+              <button onClick={onSave}
+                      className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      title="Save Palette">
+                <Icons.Save />
+              </button>
+
+              {/* Saved */}
+              <button onClick={onShowSaved}
+                      className="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      title="Saved Palettes">
+                <Icons.Bookmark />
+                {savedCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {savedCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Export */}
+              <button onClick={onShowExport}
+                      className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      title="Export Palette">
+                <Icons.Export />
+              </button>
+            </div>
+          </div>
+
+          {/* Spacebar hint */}
+          <div className="hidden md:flex items-center justify-center pb-1 -mt-1">
+            <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded mono">
+              press <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-[9px] font-semibold mx-0.5">SPACE</kbd> to generate
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // App Component
+    // ========================================
+    function App() {
+      const [mode, setMode] = useState('random');
+      const [baseColor, setBaseColor] = useState('#6366f1');
+      const [colors, setColors] = useState(() => {
+        const h = randomInRange(0, 360);
+        return Array.from({ length: 5 }, (_, i) => hslToHex(h + i * 30, randomInRange(50, 80), randomInRange(35, 65)));
+      });
+      const [locked, setLocked] = useState([false, false, false, false, false]);
+      const [savedPalettes, setSavedPalettes] = useState(() => {
+        try {
+          return JSON.parse(localStorage.getItem('palettes') || '[]');
+        } catch { return []; }
+      });
+      const [showSaved, setShowSaved] = useState(false);
+      const [showExport, setShowExport] = useState(false);
+      const [toast, setToast] = useState({ message: '', visible: false });
+      const toastTimer = useRef(null);
+
+      const showToast = useCallback((message) => {
+        clearTimeout(toastTimer.current);
+        setToast({ message, visible: true });
+        toastTimer.current = setTimeout(() => {
+          setToast(prev => ({ ...prev, visible: false }));
+          setTimeout(() => setToast({ message: '', visible: false }), 300);
+        }, 2000);
+      }, []);
+
+      const generate = useCallback(() => {
+        const lockedColors = locked.map((isLocked, i) => isLocked ? colors[i] : null);
+        const newColors = generatePalette(mode, baseColor, lockedColors);
+        setColors(newColors);
+      }, [mode, baseColor, locked, colors]);
+
+      const toggleLock = useCallback((index) => {
+        setLocked(prev => {
+          const next = [...prev];
+          next[index] = !next[index];
+          return next;
+        });
+      }, []);
+
+      const savePalette = useCallback(() => {
+        const palette = {
+          colors: [...colors],
+          mode,
+          date: new Date().toLocaleDateString('ko-KR'),
+        };
+        const updated = [palette, ...savedPalettes];
+        setSavedPalettes(updated);
+        localStorage.setItem('palettes', JSON.stringify(updated));
+        showToast('Palette saved');
+      }, [colors, mode, savedPalettes, showToast]);
+
+      const loadPalette = useCallback((palette) => {
+        setColors(palette.colors);
+        setMode(palette.mode);
+        setLocked([false, false, false, false, false]);
+        setShowSaved(false);
+        showToast('Palette loaded');
+      }, [showToast]);
+
+      const deletePalette = useCallback((index) => {
+        const updated = savedPalettes.filter((_, i) => i !== index);
+        setSavedPalettes(updated);
+        localStorage.setItem('palettes', JSON.stringify(updated));
+        showToast('Palette deleted');
+      }, [savedPalettes, showToast]);
+
+      // Spacebar shortcut
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.code === 'Space' && !e.target.closest('input, textarea, button, [contenteditable]')) {
+            e.preventDefault();
+            generate();
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [generate]);
+
+      return (
+        <div className="h-screen flex flex-col overflow-hidden">
+          <Toolbar
+            mode={mode} setMode={setMode}
+            baseColor={baseColor} setBaseColor={setBaseColor}
+            onGenerate={generate}
+            onSave={savePalette}
+            onShowSaved={() => setShowSaved(true)}
+            onShowExport={() => setShowExport(true)}
+            savedCount={savedPalettes.length}
+          />
+
+          {/* Palette Stripes */}
+          <div className="flex-1 flex flex-col md:flex-row pt-14 md:pt-[4.5rem]">
+            {colors.map((color, i) => (
+              <ColorStripe
+                key={i}
+                color={color}
+                locked={locked[i]}
+                onToggleLock={() => toggleLock(i)}
+                onCopy={() => {}}
+                showToast={showToast}
+              />
+            ))}
+          </div>
+
+          {/* Modals */}
+          <SavedPalettes
+            isOpen={showSaved}
+            onClose={() => setShowSaved(false)}
+            savedPalettes={savedPalettes}
+            onLoad={loadPalette}
+            onDelete={deletePalette}
+          />
+          <ExportModal
+            isOpen={showExport}
+            onClose={() => setShowExport(false)}
+            colors={colors}
+            showToast={showToast}
+          />
+
+          {/* Toast */}
+          <Toast message={toast.message} visible={toast.visible} />
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

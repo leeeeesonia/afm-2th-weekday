@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apple Style Page</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            apple: {
+              blue: '#0071e3',
+              'blue-hover': '#0077ed',
+              dark: '#1d1d1f',
+              gray: '#6e6e73',
+              'gray-light': '#a1a1a6',
+              bg: '#fbfbfd',
+              'bg-alt': '#f5f5f7',
+              'bg-alt-hover': '#e8e8ed',
+            }
+          },
+          fontFamily: {
+            apple: ['-apple-system', 'BlinkMacSystemFont', 'Helvetica Neue', 'Apple SD Gothic Neo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    .text-gradient {
+      background: linear-gradient(135deg, #1d1d1f 0%, #6e6e73 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-blur {
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+    }
+    .text-clamp-hero { font-size: clamp(48px, 8vw, 80px); }
+    .text-clamp-sub { font-size: clamp(18px, 3vw, 28px); }
+    .text-clamp-section { font-size: clamp(32px, 5vw, 48px); }
+    .text-clamp-section-lg { font-size: clamp(32px, 5vw, 56px); }
+  </style>
+</head>
+<body class="font-apple text-apple-dark bg-apple-bg antialiased">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // =========================================
+    // 1. React Hooks 구조 분해 할당
+    // =========================================
+    const { useState, useCallback } = React;
+
+    // =========================================
+    // 2. 디자인 시스템 컴포넌트
+    // =========================================
+
+    const Button = ({ variant = 'primary', size = 'md', disabled = false, onClick, className = '', children }) => {
+      const base = 'inline-block rounded-full no-underline transition-all duration-300 cursor-pointer text-center';
+
+      const variants = {
+        primary: 'bg-apple-blue text-white hover:bg-apple-blue-hover',
+        secondary: 'bg-transparent text-apple-blue border border-apple-blue hover:bg-apple-blue hover:text-white',
+        dark: 'bg-apple-bg-alt text-apple-dark hover:bg-apple-bg-alt-hover',
+        ghost: 'bg-transparent text-apple-gray hover:text-apple-dark',
+      };
+
+      const sizes = {
+        sm: 'py-2 px-5 text-sm',
+        md: 'py-3.5 px-8 text-[17px]',
+        lg: 'py-4 px-10 text-lg',
+      };
+
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    };
+
+    const Card = ({ icon, title, description, className = '' }) => (
+      <div className={`bg-white rounded-2xl py-12 px-9 text-center border border-black/[0.04] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] ${className}`}>
+        {icon && <div className="text-5xl mb-5">{icon}</div>}
+        {title && <h3 className="text-2xl font-semibold tracking-tight mb-3">{title}</h3>}
+        {description && <p className="text-base text-apple-gray leading-relaxed">{description}</p>}
+      </div>
+    );
+
+    const NavLink = ({ href = '#', children }) => (
+      <li>
+        <a href={href} className="no-underline text-apple-dark text-sm opacity-80 hover:opacity-100 transition-opacity duration-300">
+          {children}
+        </a>
+      </li>
+    );
+
+    // =========================================
+    // 3. 기능 컴포넌트
+    // =========================================
+
+    const Navbar = () => (
+      <nav className="fixed top-0 w-full bg-apple-bg/80 nav-blur border-b border-black/[0.08] z-50 px-10">
+        <ul className="flex justify-center items-center list-none h-12 gap-8">
+          <NavLink>Home</NavLink>
+          <NavLink>About</NavLink>
+          <NavLink>Features</NavLink>
+          <NavLink>Contact</NavLink>
+        </ul>
+      </nav>
+    );
+
+    const Hero = () => {
+      const handleClick = useCallback((text) => {
+        alert(text);
+      }, []);
+
+      return (
+        <section className="flex flex-col items-center justify-center min-h-screen text-center pt-30 pb-20 px-6 bg-gradient-to-b from-apple-bg to-apple-bg-alt">
+          <p
+            className="text-xl font-semibold text-apple-gray mb-3 tracking-tight cursor-pointer"
+            onClick={() => handleClick('안녕하세요')}
+          >
+            안녕하세요
+          </p>
+          <h1
+            className="text-clamp-hero font-bold tracking-tighter leading-none mb-5 text-gradient cursor-pointer"
+            onClick={() => handleClick('제목 1')}
+          >
+            제목 1
+          </h1>
+          <p
+            className="text-clamp-sub text-apple-gray max-w-[600px] leading-snug mb-10 cursor-pointer"
+            onClick={() => handleClick('간결함의 궁극. 당신의 웹 경험을 완전히 새로운 차원으로 끌어올립니다.')}
+          >
+            간결함의 궁극. 당신의 웹 경험을 완전히 새로운 차원으로 끌어올립니다.
+          </p>
+          <div className="flex gap-4 flex-wrap justify-center">
+            <Button variant="primary">자세히 알아보기</Button>
+            <Button variant="secondary">시작하기</Button>
+          </div>
+        </section>
+      );
+    };
+
+    const Features = () => {
+      const features = [
+        { icon: '\u25C7', title: '심플한 디자인', description: '불필요한 것은 모두 걷어내고, 본질에만 집중한 깔끔한 인터페이스를 경험하세요.' },
+        { icon: '\u2696', title: '강력한 성능', description: '최적화된 코드와 효율적인 구조로 빠르고 부드러운 사용자 경험을 제공합니다.' },
+        { icon: '\u272A', title: '세련된 경험', description: '디테일 하나하나에 신경 쓴 인터랙션으로 사용의 즐거움을 더합니다.' },
+      ];
+
+      return (
+        <section className="py-20 px-6 max-w-[1200px] mx-auto">
+          <h2 className="text-clamp-section font-bold tracking-tight text-center mb-16">놀라운 기능들</h2>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-6">
+            {features.map((f, i) => (
+              <Card key={i} icon={f.icon} title={f.title} description={f.description} />
+            ))}
+          </div>
+        </section>
+      );
+    };
+
+    const DarkSection = () => (
+      <section className="bg-apple-dark text-apple-bg-alt py-30 px-6 text-center">
+        <h2 className="text-clamp-section-lg font-bold tracking-tight mb-4">더 알아보세요.</h2>
+        <p className="text-xl text-apple-gray-light max-w-[600px] mx-auto mb-10 leading-relaxed">
+          새로운 가능성을 발견하고, 당신만의 방식으로 활용해 보세요.
+        </p>
+        <Button variant="dark">시작하기</Button>
+      </section>
+    );
+
+    const Footer = () => (
+      <footer className="bg-apple-bg-alt py-10 px-6 text-center border-t border-black/[0.06]">
+        <p className="text-[13px] text-apple-gray leading-loose">
+          Copyright &copy; 2026. All rights reserved.<br />
+          <a href="#" className="text-apple-blue no-underline hover:underline">개인정보 처리방침</a>
+          {' | '}
+          <a href="#" className="text-apple-blue no-underline hover:underline">이용약관</a>
+        </p>
+      </footer>
+    );
+
+    // =========================================
+    // 4. 레이아웃 컴포넌트
+    // =========================================
+
+    // =========================================
+    // 5. 페이지 컴포넌트
+    // =========================================
+
+    // =========================================
+    // 6. App 루트 컴포넌트
+    // =========================================
+
+    const App = () => (
+      <div>
+        <Navbar />
+        <Hero />
+        <Features />
+        <DarkSection />
+        <Footer />
+      </div>
+    );
+
+    // =========================================
+    // 7. 렌더링
+    // =========================================
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

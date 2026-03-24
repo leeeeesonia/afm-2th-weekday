@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apple Style Navigation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #000; color: #fff; }
+
+    .nav-blur {
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+    }
+
+    .mega-menu-enter {
+      animation: megaMenuIn 0.3s ease forwards;
+    }
+    .mega-menu-exit {
+      animation: megaMenuOut 0.2s ease forwards;
+    }
+
+    @keyframes megaMenuIn {
+      from { opacity: 0; max-height: 0; }
+      to { opacity: 1; max-height: 500px; }
+    }
+    @keyframes megaMenuOut {
+      from { opacity: 1; max-height: 500px; }
+      to { opacity: 0; max-height: 0; }
+    }
+
+    .mobile-menu-enter {
+      animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    .mobile-menu-exit {
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideUp {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+
+    .hero-gradient {
+      background: radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #000 70%);
+    }
+
+    .card-shine {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+    }
+    .card-shine:hover {
+      background: linear-gradient(135deg, #1f1f1f 0%, #333 50%, #1f1f1f 100%);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.8s ease forwards;
+      opacity: 0;
+    }
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    .hamburger-line {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'apple-gray': {
+              100: '#f5f5f7',
+              200: '#d2d2d7',
+              300: '#86868b',
+              400: '#6e6e73',
+              500: '#424245',
+              600: '#2d2d2d',
+              700: '#1d1d1f',
+              800: '#151516',
+              900: '#0a0a0a',
+            },
+            'apple-blue': '#2997ff',
+            'apple-blue-hover': '#0077ed',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // ========================================
+    // Data Constants
+    // ========================================
+    const NAV_ITEMS = [
+      {
+        label: 'Mac',
+        links: [
+          { heading: 'Mac 살펴보기', items: ['MacBook Air', 'MacBook Pro', 'iMac', 'Mac mini', 'Mac Studio', 'Mac Pro', 'Mac 비교하기'] },
+          { heading: '더 알아보기', items: ['Mac이 특별한 이유', 'macOS Sequoia', 'Apple Intelligence', 'Continuity', '액세서리'] },
+          { heading: '쇼핑하기', items: ['Mac 쇼핑하기', 'Mac 액세서리', 'Apple Trade In', '할부 구매'] },
+        ]
+      },
+      {
+        label: 'iPad',
+        links: [
+          { heading: 'iPad 살펴보기', items: ['iPad Pro', 'iPad Air', 'iPad', 'iPad mini', 'Apple Pencil', 'iPad 비교하기'] },
+          { heading: '더 알아보기', items: ['iPad가 특별한 이유', 'iPadOS 18', 'Apple Intelligence', '액세서리'] },
+          { heading: '쇼핑하기', items: ['iPad 쇼핑하기', 'iPad 액세서리', 'Apple Trade In'] },
+        ]
+      },
+      {
+        label: 'iPhone',
+        links: [
+          { heading: 'iPhone 살펴보기', items: ['iPhone 16 Pro', 'iPhone 16', 'iPhone 15', 'iPhone SE', 'iPhone 비교하기'] },
+          { heading: '더 알아보기', items: ['iPhone이 특별한 이유', 'iOS 18', 'Apple Intelligence', 'iPhone의 개인 정보 보호'] },
+          { heading: '쇼핑하기', items: ['iPhone 쇼핑하기', 'iPhone 액세서리', 'Apple Trade In'] },
+        ]
+      },
+      {
+        label: 'Watch',
+        links: [
+          { heading: 'Watch 살펴보기', items: ['Apple Watch Series 10', 'Apple Watch Ultra 2', 'Apple Watch SE', 'Apple Watch 비교하기'] },
+          { heading: '더 알아보기', items: ['Watch가 특별한 이유', 'watchOS 11', '건강', '피트니스+'] },
+          { heading: '쇼핑하기', items: ['Apple Watch 쇼핑하기', '밴드', 'Apple Trade In'] },
+        ]
+      },
+      {
+        label: 'AirPods',
+        links: [
+          { heading: 'AirPods 살펴보기', items: ['AirPods 4', 'AirPods Pro 2', 'AirPods Max', 'AirPods 비교하기'] },
+          { heading: '더 알아보기', items: ['AirPods가 특별한 이유', '개인화된 공간 음향', 'Apple Music'] },
+          { heading: '쇼핑하기', items: ['AirPods 쇼핑하기', 'AirPods 액세서리'] },
+        ]
+      },
+      {
+        label: 'TV 및 홈',
+        links: [
+          { heading: 'TV 및 홈 살펴보기', items: ['Apple TV 4K', 'HomePod', 'HomePod mini'] },
+          { heading: '더 알아보기', items: ['Apple TV 앱', 'Apple TV+', 'Apple Music', '홈 앱', 'AirPlay'] },
+          { heading: '쇼핑하기', items: ['Apple TV 4K 쇼핑하기', 'HomePod 쇼핑하기', 'HomePod mini 쇼핑하기'] },
+        ]
+      },
+      {
+        label: '엔터테인먼트',
+        links: [
+          { heading: '엔터테인먼트 살펴보기', items: ['Apple One', 'Apple TV+', 'Apple Music', 'Apple Arcade', 'Apple Podcasts', 'Apple Books'] },
+          { heading: '지원', items: ['Apple TV+ 지원', 'Apple Music 지원'] },
+        ]
+      },
+      {
+        label: '액세서리',
+        links: [
+          { heading: '액세서리 쇼핑하기', items: ['모든 액세서리', 'Mac', 'iPad', 'iPhone', 'Watch', 'AirPods', 'TV 및 홈'] },
+          { heading: '카테고리별로 살펴보기', items: ['Made by Apple', 'AirTag', '케이스 및 보호', '충전', '크리에이티브'] },
+        ]
+      },
+      {
+        label: '고객지원',
+        links: [
+          { heading: '고객지원', items: ['iPhone', 'Mac', 'iPad', 'Watch', 'AirPods', 'Music', 'TV'] },
+          { heading: '도움받기', items: ['커뮤니티', 'Apple 계정 관리', 'Apple Care+', '청구 및 구독'] },
+        ]
+      },
+    ];
+
+    const PRODUCTS = [
+      { name: 'iPhone 16 Pro', tagline: '프로 그 이상.', desc: 'A18 Pro 칩. Apple Intelligence. 카메라 컨트롤.', color: 'from-blue-900/30 to-purple-900/30', price: '1,550,000원부터' },
+      { name: 'MacBook Air', tagline: '가벼움, 그 이상의 능력.', desc: 'M3 칩. 놀라운 배터리 사용 시간. Apple Intelligence.', color: 'from-gray-800/50 to-gray-900/50', price: '1,390,000원부터' },
+      { name: 'iPad Pro', tagline: '얇디얇은 경이로움.', desc: 'M4 칩. 탠덤 OLED. Apple Pencil Pro.', color: 'from-orange-900/20 to-red-900/20', price: '1,499,000원부터' },
+      { name: 'Apple Watch Ultra 2', tagline: '더 밝게. 더 강하게.', desc: '가장 밝은 Apple Watch 디스플레이. 견고한 티타늄.', color: 'from-amber-900/20 to-yellow-900/20', price: '1,149,000원부터' },
+      { name: 'AirPods Pro 2', tagline: '청력 건강의 새 시대.', desc: '적응형 오디오. 청력 보호. 대화 인식.', color: 'from-green-900/20 to-teal-900/20', price: '349,000원부터' },
+      { name: 'Vision Pro', tagline: '애플의 첫 공간 컴퓨터.', desc: '혁신적인 디스플레이. 몰입형 엔터테인먼트.', color: 'from-indigo-900/30 to-violet-900/30', price: '4,999,000원부터' },
+    ];
+
+    // ========================================
+    // SVG Icon Components
+    // ========================================
+    const AppleLogo = () => (
+      <svg viewBox="0 0 17 48" width="14" height="44" className="fill-apple-gray-200 hover:fill-white transition-colors cursor-pointer">
+        <path d="m15.5752 19.0722c-0.053 0-5.2385-2.4182-5.2385 4.9633 0 7.88 6.9635 10.6035 7.0336 10.6035 0-0.123-1.0931 3.8074-3.6308 7.5599-2.2299 3.2625-4.565 6.5151-8.1003 6.5151-3.535 0-4.4303-2.1567-8.2739-2.1567-3.7385 0-5.0681 2.2268-8.3238 2.2268-3.2557 0-5.5658-2.9721-8.1002-6.5852-2.8853-4.1013-5.2384-10.4633-5.2384-16.545 0-9.7236 6.3282-14.8972 12.5613-14.8972 3.3258 0 6.1014 2.1868 8.1704 2.1868 1.9639 0 5.0179-2.3268 8.7814-2.3268 1.4183 0 6.5154 0.1401 9.8511 5.2085z" transform="translate(-0.09 -0.09)"/>
+      </svg>
+    );
+
+    const SearchIcon = () => (
+      <svg width="15" height="44" viewBox="0 0 15 44" className="fill-apple-gray-200 hover:fill-white transition-colors cursor-pointer">
+        <path d="m14.298 27.202l-3.87-3.87c0.701-0.929 1.122-2.081 1.122-3.332 0-3.032-2.468-5.5-5.5-5.5s-5.5 2.468-5.5 5.5 2.468 5.5 5.5 5.5c1.251 0 2.403-0.421 3.332-1.122l3.87 3.87c0.151 0.151 0.348 0.226 0.546 0.226s0.395-0.075 0.546-0.226c0.302-0.302 0.302-0.79 0-1.046zm-8.248-3.198c-2.26 0-4.1-1.84-4.1-4.1s1.84-4.1 4.1-4.1 4.1 1.84 4.1 4.1-1.84 4.1-4.1 4.1z"/>
+      </svg>
+    );
+
+    const BagIcon = () => (
+      <svg width="14" height="44" viewBox="0 0 14 44" className="fill-apple-gray-200 hover:fill-white transition-colors cursor-pointer">
+        <path d="m11.3535 16.0283h-1.0205a3.4229 3.4229 0 0 0-6.666 0h-1.0205a2.1184 2.1184 0 0 0-2.1184 2.1184v8.368a2.1184 2.1184 0 0 0 2.1184 2.1184h8.707a2.1184 2.1184 0 0 0 2.1184-2.1184v-8.368a2.1184 2.1184 0 0 0-2.1184-2.1184zm-4.3535-1.978a2.3169 2.3169 0 0 1 2.2222 1.978h-4.4444a2.3169 2.3169 0 0 1 2.2222-1.978zm5.3719 12.4648a1.0182 1.0182 0 0 1-1.0184 1.0184h-8.707a1.0182 1.0182 0 0 1-1.0184-1.0184v-8.368a1.0182 1.0182 0 0 1 1.0184-1.0184h8.707a1.0182 1.0182 0 0 1 1.0184 1.0184z"/>
+      </svg>
+    );
+
+    // ========================================
+    // Hamburger Button Component
+    // ========================================
+    const HamburgerButton = ({ isOpen, onClick }) => (
+      <button onClick={onClick} className="lg:hidden relative w-[18px] h-[18px] flex flex-col justify-center items-center" aria-label="Menu">
+        <span className={`hamburger-line block w-[17px] h-[1px] bg-apple-gray-200 absolute ${isOpen ? 'rotate-45 top-[9px]' : 'top-[5px]'}`} />
+        <span className={`hamburger-line block w-[17px] h-[1px] bg-apple-gray-200 absolute ${isOpen ? '-rotate-45 top-[9px]' : 'top-[13px]'}`} />
+      </button>
+    );
+
+    // ========================================
+    // Mega Menu Component (Desktop)
+    // ========================================
+    const MegaMenu = ({ item, isVisible }) => {
+      if (!item) return null;
+
+      return (
+        <div className={`absolute top-full left-0 w-full nav-blur overflow-hidden ${isVisible ? 'mega-menu-enter' : 'mega-menu-exit'}`}
+             style={{ backgroundColor: 'rgba(29,29,31,0.95)' }}>
+          <div className="max-w-[980px] mx-auto px-6 py-10">
+            <div className="grid grid-cols-3 gap-8">
+              {item.links.map((section, i) => (
+                <div key={i}>
+                  <h3 className="text-xs text-apple-gray-300 font-semibold mb-3 uppercase tracking-wider">{section.heading}</h3>
+                  <ul className="space-y-2">
+                    {section.items.map((link, j) => (
+                      <li key={j}>
+                        <a href="#" className={`block transition-colors duration-200 hover:text-white ${j === 0 && i === 0 ? 'text-2xl font-bold text-white hover:text-apple-blue' : 'text-sm text-apple-gray-200 hover:text-white'}`}>
+                          {link}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ========================================
+    // Mobile Menu Component
+    // ========================================
+    const MobileMenu = ({ isOpen, items }) => {
+      const [expandedItem, setExpandedItem] = useState(null);
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="lg:hidden fixed inset-0 top-[44px] z-40 overflow-y-auto mobile-menu-enter"
+             style={{ backgroundColor: 'rgba(0,0,0,0.97)' }}>
+          <div className="px-8 py-4">
+            {/* Search */}
+            <div className="mb-6 pb-4 border-b border-apple-gray-500">
+              <div className="flex items-center gap-3 bg-apple-gray-700 rounded-lg px-4 py-2">
+                <svg width="14" height="14" viewBox="0 0 15 44" className="fill-apple-gray-300 flex-shrink-0">
+                  <path d="m14.298 27.202l-3.87-3.87c0.701-0.929 1.122-2.081 1.122-3.332 0-3.032-2.468-5.5-5.5-5.5s-5.5 2.468-5.5 5.5 2.468 5.5 5.5 5.5c1.251 0 2.403-0.421 3.332-1.122l3.87 3.87c0.151 0.151 0.348 0.226 0.546 0.226s0.395-0.075 0.546-0.226c0.302-0.302 0.302-0.79 0-1.046zm-8.248-3.198c-2.26 0-4.1-1.84-4.1-4.1s1.84-4.1 4.1-4.1 4.1 1.84 4.1 4.1-1.84 4.1-4.1 4.1z"/>
+                </svg>
+                <input type="text" placeholder="검색" className="bg-transparent text-sm text-white placeholder-apple-gray-300 outline-none w-full" />
+              </div>
+            </div>
+
+            {/* Menu Items */}
+            <nav>
+              {items.map((item, idx) => (
+                <div key={idx} className="border-b border-apple-gray-600/40" style={{ animationDelay: `${idx * 0.05}s` }}>
+                  <button
+                    className="w-full flex items-center justify-between py-3 text-xl font-semibold text-apple-gray-100 hover:text-white transition-colors"
+                    onClick={() => setExpandedItem(expandedItem === idx ? null : idx)}
+                  >
+                    {item.label}
+                    <svg className={`w-3 h-3 fill-apple-gray-300 transition-transform duration-300 ${expandedItem === idx ? 'rotate-90' : ''}`} viewBox="0 0 10 16">
+                      <path d="M1.5 1L8.5 8L1.5 15" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    </svg>
+                  </button>
+                  {expandedItem === idx && (
+                    <div className="pb-4 pl-2 fade-in">
+                      {item.links.map((section, si) => (
+                        <div key={si} className="mb-3">
+                          <h4 className="text-[11px] text-apple-gray-400 uppercase tracking-wider mb-1">{section.heading}</h4>
+                          {section.items.map((link, li) => (
+                            <a key={li} href="#" className="block py-1 text-sm text-apple-gray-200 hover:text-white transition-colors">{link}</a>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </nav>
+          </div>
+        </div>
+      );
+    };
+
+    // ========================================
+    // Header / Navigation Component
+    // ========================================
+    const Header = () => {
+      const [activeMenu, setActiveMenu] = useState(null);
+      const [menuVisible, setMenuVisible] = useState(false);
+      const [mobileOpen, setMobileOpen] = useState(false);
+      const [scrolled, setScrolled] = useState(false);
+      const timeoutRef = useRef(null);
+
+      useEffect(() => {
+        const handleScroll = () => setScrolled(window.scrollY > 10);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+      }, []);
+
+      // Lock body scroll when mobile menu open
+      useEffect(() => {
+        document.body.style.overflow = mobileOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+      }, [mobileOpen]);
+
+      const handleMouseEnter = useCallback((idx) => {
+        clearTimeout(timeoutRef.current);
+        setActiveMenu(idx);
+        setMenuVisible(true);
+      }, []);
+
+      const handleMouseLeave = useCallback(() => {
+        timeoutRef.current = setTimeout(() => {
+          setMenuVisible(false);
+          setTimeout(() => setActiveMenu(null), 200);
+        }, 150);
+      }, []);
+
+      return (
+        <header className={`fixed top-0 left-0 right-0 z-50 nav-blur transition-all duration-300 ${scrolled ? 'shadow-lg' : ''}`}
+                style={{ backgroundColor: scrolled ? 'rgba(29,29,31,0.85)' : 'rgba(29,29,31,0.95)' }}>
+          {/* Main Nav Bar */}
+          <nav className="max-w-[980px] mx-auto h-[44px] flex items-center justify-between px-4 lg:px-0">
+            {/* Apple Logo */}
+            <AppleLogo />
+
+            {/* Desktop Nav Items */}
+            <div className="hidden lg:flex items-center gap-0 flex-1 justify-center">
+              {NAV_ITEMS.map((item, idx) => (
+                <a
+                  key={idx}
+                  href="#"
+                  className={`px-3 py-2 text-[12px] transition-colors duration-200 ${activeMenu === idx ? 'text-white' : 'text-apple-gray-200 hover:text-white'}`}
+                  onMouseEnter={() => handleMouseEnter(idx)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+
+            {/* Right Icons */}
+            <div className="flex items-center gap-4">
+              <SearchIcon />
+              <BagIcon />
+              <HamburgerButton isOpen={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)} />
+            </div>
+          </nav>
+
+          {/* Desktop Mega Menu */}
+          <div className="hidden lg:block"
+               onMouseEnter={() => { clearTimeout(timeoutRef.current); }}
+               onMouseLeave={handleMouseLeave}>
+            {activeMenu !== null && (
+              <MegaMenu item={NAV_ITEMS[activeMenu]} isVisible={menuVisible} />
+            )}
+          </div>
+
+          {/* Overlay for mega menu */}
+          {menuVisible && activeMenu !== null && (
+            <div className="hidden lg:block fixed inset-0 top-[44px] bg-black/50 -z-10" onMouseEnter={handleMouseLeave} />
+          )}
+
+          {/* Mobile Menu */}
+          <MobileMenu isOpen={mobileOpen} items={NAV_ITEMS} />
+        </header>
+      );
+    };
+
+    // ========================================
+    // Hero Section Component
+    // ========================================
+    const HeroSection = () => (
+      <section className="hero-gradient pt-[44px]">
+        <div className="flex flex-col items-center justify-center text-center px-4 py-20 md:py-32 lg:py-40">
+          <h2 className="text-apple-gray-300 text-lg md:text-xl font-medium mb-2 fade-in" style={{ animationDelay: '0.2s' }}>iPhone 16 Pro</h2>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 bg-gradient-to-r from-[#c9a868] via-[#e8d5a3] to-[#c9a868] bg-clip-text text-transparent fade-in" style={{ animationDelay: '0.4s' }}>
+            프로 그 이상.
+          </h1>
+          <p className="text-apple-gray-200 text-lg md:text-xl mb-2 fade-in" style={{ animationDelay: '0.6s' }}>Apple Intelligence</p>
+          <p className="text-apple-gray-300 text-base mb-8 fade-in" style={{ animationDelay: '0.7s' }}>1,550,000원부터</p>
+          <div className="flex items-center gap-6 fade-in" style={{ animationDelay: '0.8s' }}>
+            <a href="#" className="text-apple-blue hover:text-apple-blue-hover text-lg transition-colors">
+              더 알아보기 &gt;
+            </a>
+            <a href="#" className="text-apple-blue hover:text-apple-blue-hover text-lg transition-colors">
+              구입하기 &gt;
+            </a>
+          </div>
+
+          {/* Hero placeholder */}
+          <div className="mt-12 w-full max-w-3xl aspect-[16/9] rounded-3xl overflow-hidden fade-in" style={{ animationDelay: '1s' }}>
+            <div className="w-full h-full bg-gradient-to-b from-apple-gray-700 to-apple-gray-900 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-8xl md:text-9xl mb-4 opacity-20">&#9679;</div>
+                <p className="text-apple-gray-400 text-sm">iPhone 16 Pro Hero Image</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+
+    // ========================================
+    // Banner Section Component
+    // ========================================
+    const BannerSection = () => (
+      <section className="bg-apple-gray-900 border-t border-apple-gray-600/30">
+        <div className="max-w-[980px] mx-auto text-center py-16 md:py-20 px-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-3">MacBook Air</h2>
+          <p className="text-xl md:text-2xl text-apple-gray-200 mb-2">가벼움, 그 이상의 능력.</p>
+          <p className="text-apple-gray-300 mb-6">M3 칩 탑재. 1,390,000원부터</p>
+          <div className="flex items-center justify-center gap-6">
+            <a href="#" className="text-apple-blue hover:text-apple-blue-hover transition-colors">더 알아보기 &gt;</a>
+            <a href="#" className="text-apple-blue hover:text-apple-blue-hover transition-colors">구입하기 &gt;</a>
+          </div>
+          <div className="mt-10 mx-auto w-full max-w-2xl aspect-[16/9] bg-gradient-to-b from-apple-gray-600/20 to-apple-gray-800/20 rounded-2xl flex items-center justify-center">
+            <p className="text-apple-gray-400 text-sm">MacBook Air Hero Image</p>
+          </div>
+        </div>
+      </section>
+    );
+
+    // ========================================
+    // Product Card Component
+    // ========================================
+    const ProductCard = ({ product, index }) => (
+      <div className={`card-shine rounded-2xl p-8 flex flex-col items-center text-center transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl cursor-pointer bg-gradient-to-br ${product.color} fade-in`}
+           style={{ animationDelay: `${index * 0.15}s` }}>
+        {/* Placeholder image area */}
+        <div className="w-full aspect-[4/3] bg-gradient-to-b from-white/5 to-transparent rounded-xl mb-6 flex items-center justify-center">
+          <span className="text-5xl opacity-10">&#9679;</span>
+        </div>
+        <h3 className="text-xl font-bold text-white mb-1">{product.name}</h3>
+        <p className="text-lg text-apple-gray-200 mb-2">{product.tagline}</p>
+        <p className="text-sm text-apple-gray-300 mb-4">{product.desc}</p>
+        <p className="text-sm text-apple-gray-200 mb-5">{product.price}</p>
+        <div className="flex gap-4 text-sm">
+          <a href="#" className="text-apple-blue hover:text-apple-blue-hover transition-colors">더 알아보기 &gt;</a>
+          <a href="#" className="text-apple-blue hover:text-apple-blue-hover transition-colors">구입하기 &gt;</a>
+        </div>
+      </div>
+    );
+
+    // ========================================
+    // Product Grid Section
+    // ========================================
+    const ProductGrid = () => (
+      <section className="bg-black py-16 md:py-20 px-4">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {PRODUCTS.map((product, idx) => (
+              <ProductCard key={idx} product={product} index={idx} />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+
+    // ========================================
+    // Footer Component
+    // ========================================
+    const Footer = () => (
+      <footer className="bg-apple-gray-900 border-t border-apple-gray-600/30">
+        <div className="max-w-[980px] mx-auto px-4 py-8">
+          <p className="text-xs text-apple-gray-400 mb-6 leading-5">
+            * Apple Intelligence은 M1 이상의 칩이 탑재된 iPhone, iPad 및 Mac에서 사용할 수 있으며, Siri 및 기기 언어가 지원되는 언어로 설정되어 있어야 합니다. 자세한 내용은 apple.com/kr/apple-intelligence에서 확인할 수 있습니다.
+          </p>
+
+          <div className="border-t border-apple-gray-600/30 pt-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-8">
+              {['쇼핑 및 알아보기', 'Apple Store', 'Apple 계정', 'Apple 가치관', 'Apple 정보'].map((title, i) => (
+                <div key={i}>
+                  <h4 className="text-xs font-semibold text-apple-gray-200 mb-3">{title}</h4>
+                  <ul className="space-y-2">
+                    {['링크 1', '링크 2', '링크 3', '링크 4'].map((link, j) => (
+                      <li key={j}><a href="#" className="text-xs text-apple-gray-400 hover:text-white transition-colors">{link}</a></li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-apple-gray-600/30 pt-4 flex flex-col md:flex-row items-center justify-between gap-2">
+            <p className="text-xs text-apple-gray-400">Copyright &copy; 2025 Apple Inc. 모든 권리 보유.</p>
+            <div className="flex items-center gap-3 text-xs text-apple-gray-400">
+              <a href="#" className="hover:text-white transition-colors">개인정보 처리방침</a>
+              <span>|</span>
+              <a href="#" className="hover:text-white transition-colors">약관</a>
+              <span>|</span>
+              <a href="#" className="hover:text-white transition-colors">사이트 맵</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    );
+
+    // ========================================
+    // App Component
+    // ========================================
+    const App = () => (
+      <div className="min-h-screen bg-black">
+        <Header />
+        <main>
+          <HeroSection />
+          <BannerSection />
+          <ProductGrid />
+        </main>
+        <Footer />
+      </div>
+    );
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
