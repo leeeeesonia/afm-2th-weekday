@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>세금 계산기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            income: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            vat: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' },
+            withhold: { 50: '#faf5ff', 100: '#f3e8ff', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Noto Sans KR', sans-serif; }
+    .sidebar-enter { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+    input[type="text"]:focus { outline: none; }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useEffect, useCallback, useMemo, createContext, useContext, useRef } = React;
+
+    // ========================================
+    // Utility Functions
+    // ========================================
+    const formatWon = (num) => {
+      if (num == null || isNaN(num)) return '0';
+      return Math.round(num).toLocaleString('ko-KR');
+    };
+
+    const formatWonUnit = (num) => {
+      if (num == null || isNaN(num)) return '0원';
+      const abs = Math.abs(num);
+      const sign = num < 0 ? '-' : '';
+      if (abs >= 100000000) {
+        const eok = Math.floor(abs / 100000000);
+        const man = Math.floor((abs % 100000000) / 10000);
+        return sign + (man > 0 ? `${eok}억 ${formatWon(man)}만원` : `${eok}억원`);
+      }
+      if (abs >= 10000) {
+        return sign + `${formatWon(Math.floor(abs / 10000))}만원`;
+      }
+      return sign + `${formatWon(abs)}원`;
+    };
+
+    const parseNumber = (str) => {
+      if (!str) return 0;
+      return parseInt(str.replace(/[^0-9]/g, ''), 10) || 0;
+    };
+
+    const TAX_TYPES = {
+      income: { key: 'income', label: '종합소득세', color: 'income', icon: '💰' },
+      vat: { key: 'vat', label: '부가가치세', color: 'vat', icon: '🧾' },
+      withhold: { key: 'withhold', label: '원천세', color: 'withhold', icon: '📋' },
+    };
+
+    const INCOME_BRACKETS = [
+      { limit: 14000000, rate: 0.06, deduction: 0 },
+      { limit: 50000000, rate: 0.15, deduction: 1260000 },
+      { limit: 88000000, rate: 0.24, deduction: 5760000 },
+      { limit: 150000000, rate: 0.35, deduction: 15440000 },
+      { limit: 300000000, rate: 0.38, deduction: 19940000 },
+      { limit: 500000000, rate: 0.40, deduction: 25940000 },
+      { limit: 1000000000, rate: 0.42, deduction: 35940000 },
+      { limit: Infinity, rate: 0.45, deduction: 65940000 },
+    ];
+
+    const VAT_INDUSTRY_RATES = [
+      { label: '소매업, 재생용 재료수집 및 판매업', rate: 15 },
+      { label: '제조업, 농업, 임업 및 어업, 소화물 전문 운송업', rate: 20 },
+      { label: '음식점업', rate: 25 },
+      { label: '건설업, 운수 및 창고업, 정보통신업', rate: 30 },
+      { label: '금융 및 보험 관련 서비스업, 전문/과학/기술 서비스업 등', rate: 40 },
+    ];
+
+    // ========================================
+    // Design System Components
+    // ========================================
+    function Button({ children, variant = 'primary', size = 'md', onClick, disabled, className = '', type = 'button' }) {
+      const base = 'font-medium rounded-lg transition-all duration-200 inline-flex items-center justify-center';
+      const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-5 py-2.5 text-base', lg: 'px-7 py-3.5 text-lg' };
+      const variants = {
+        primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm',
+        secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300',
+        danger: 'bg-red-500 text-white hover:bg-red-600 active:bg-red-700',
+        ghost: 'text-gray-600 hover:bg-gray-100',
+        income: 'bg-income-600 text-white hover:bg-income-700 shadow-sm',
+        vat: 'bg-vat-600 text-white hover:bg-vat-700 shadow-sm',
+        withhold: 'bg-withhold-600 text-white hover:bg-withhold-700 shadow-sm',
+      };
+      return (
+        <button
+          type={type}
+          onClick={onClick}
+          disabled={disabled}
+          className={`${base} ${sizes[size]} ${variants[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Card({ children, className = '', padding = true }) {
+      return (
+        <div className={`bg-white rounded-xl shadow-sm border border-gray-100 ${padding ? 'p-6' : ''} ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function NumberInput({ label, value, onChange, placeholder, suffix = '원', disabled = false, className = '' }) {
+      const displayValue = value ? formatWon(value) : '';
+      const handleChange = (e) => {
+        const num = parseNumber(e.target.value);
+        onChange(num);
+      };
+      return (
+        <div className={className}>
+          {label && <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>}
+          <div className="relative">
+            <input
+              type="text"
+              value={displayValue}
+              onChange={handleChange}
+              placeholder={placeholder || '0'}
+              disabled={disabled}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-right text-lg font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:text-gray-400"
+              inputMode="numeric"
+            />
+            {suffix && (
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium pointer-events-none">{suffix}</span>
+            )}
+          </div>
+          {value > 0 && (
+            <p className="text-xs text-gray-400 mt-1 text-right">{formatWonUnit(value)}</p>
+          )}
+        </div>
+      );
+    }
+
+    function RadioGroup({ label, options, value, onChange, colorClass = 'blue' }) {
+      return (
+        <div>
+          {label && <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>}
+          <div className="flex flex-wrap gap-2">
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onChange(opt.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                  value === opt.value
+                    ? `bg-${colorClass}-600 text-white shadow-sm`
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function SelectInput({ label, options, value, onChange, className = '' }) {
+      return (
+        <div className={className}>
+          {label && <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>}
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white cursor-pointer"
+          >
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Tax Calculation Logic
+    // ========================================
+    function calculateIncomeTax(income) {
+      if (income <= 0) return { tax: 0, localTax: 0, totalTax: 0, steps: [], bracket: null };
+      let bracket = INCOME_BRACKETS.find(b => income <= b.limit) || INCOME_BRACKETS[INCOME_BRACKETS.length - 1];
+      const tax = income * bracket.rate - bracket.deduction;
+      const localTax = Math.round(tax * 0.1);
+      const steps = [
+        { label: '과세표준 (소득금액)', value: income },
+        { label: `적용세율`, value: `${(bracket.rate * 100)}%` },
+        { label: '산출세액 (과세표준 x 세율)', value: Math.round(income * bracket.rate) },
+        { label: '누진공제액', value: bracket.deduction },
+        { label: '소득세', value: Math.round(tax) },
+        { label: '지방소득세 (소득세의 10%)', value: localTax },
+        { label: '총 납부세액', value: Math.round(tax) + localTax, highlight: true },
+      ];
+      return { tax: Math.round(tax), localTax, totalTax: Math.round(tax) + localTax, steps, bracket };
+    }
+
+    function calculateVAT(sales, purchases, taxerType, industryRate) {
+      if (taxerType === 'general') {
+        const outputTax = Math.round(sales / 1.1 * 0.1);
+        const inputTax = Math.round(purchases / 1.1 * 0.1);
+        const vat = outputTax - inputTax;
+        const steps = [
+          { label: '매출액 (공급대가)', value: sales },
+          { label: '공급가액 (매출액 / 1.1)', value: Math.round(sales / 1.1) },
+          { label: '매출세액 (공급가액 x 10%)', value: outputTax },
+          { label: '매입액', value: purchases },
+          { label: '매입세액 (매입액 / 1.1 x 10%)', value: inputTax },
+          { label: '납부세액 (매출세액 - 매입세액)', value: vat, highlight: true },
+        ];
+        return { tax: vat, steps };
+      } else {
+        const rate = industryRate / 100;
+        const vat = Math.round(sales * rate * 0.1);
+        const steps = [
+          { label: '공급대가 (매출액)', value: sales },
+          { label: `업종별 부가가치율`, value: `${industryRate}%` },
+          { label: '부가가치세액 (공급대가 x 부가가치율 x 10%)', value: vat, highlight: true },
+        ];
+        return { tax: vat, steps };
+      }
+    }
+
+    function calculateWithholdingTax(income, incomeType) {
+      if (income <= 0) return { tax: 0, steps: [] };
+      let incomeTax, localTax, steps;
+
+      if (incomeType === 'freelancer') {
+        incomeTax = Math.round(income * 0.03);
+        localTax = Math.round(income * 0.003);
+        steps = [
+          { label: '지급액', value: income },
+          { label: '소득세 (3%)', value: incomeTax },
+          { label: '지방소득세 (0.3%)', value: localTax },
+          { label: '원천징수 합계 (3.3%)', value: incomeTax + localTax, highlight: true },
+          { label: '실수령액', value: income - incomeTax - localTax },
+        ];
+      } else if (incomeType === 'other') {
+        incomeTax = Math.round(income * 0.20);
+        localTax = Math.round(income * 0.02);
+        steps = [
+          { label: '지급액', value: income },
+          { label: '소득세 (20%)', value: incomeTax },
+          { label: '지방소득세 (2%)', value: localTax },
+          { label: '원천징수 합계 (22%)', value: incomeTax + localTax, highlight: true },
+          { label: '실수령액', value: income - incomeTax - localTax },
+        ];
+      } else {
+        // salary - simplified using income tax brackets
+        const result = calculateIncomeTax(income);
+        incomeTax = result.tax;
+        localTax = result.localTax;
+        const monthlyIncomeTax = Math.round(incomeTax / 12);
+        const monthlyLocalTax = Math.round(localTax / 12);
+        steps = [
+          { label: '연간 급여', value: income },
+          { label: '연간 소득세 (간이세액)', value: incomeTax },
+          { label: '연간 지방소득세', value: localTax },
+          { label: '월 소득세 (간이세액 / 12)', value: monthlyIncomeTax },
+          { label: '월 지방소득세', value: monthlyLocalTax },
+          { label: '월 원천징수 합계', value: monthlyIncomeTax + monthlyLocalTax, highlight: true },
+          { label: '월 실수령액 (세전 월급 기준)', value: Math.round(income / 12) - monthlyIncomeTax - monthlyLocalTax },
+        ];
+        return { tax: incomeTax + localTax, monthlyTax: monthlyIncomeTax + monthlyLocalTax, steps };
+      }
+      return { tax: incomeTax + localTax, steps };
+    }
+
+    // ========================================
+    // Formula Display Components
+    // ========================================
+    function IncomeFormula() {
+      return (
+        <Card className="border-l-4 border-l-income-500 fade-in">
+          <h3 className="text-lg font-bold text-income-700 mb-3">종합소득세 계산 공식</h3>
+          <div className="bg-income-50 rounded-lg p-4 mb-4">
+            <p className="text-center font-semibold text-income-700 text-lg">
+              산출세액 = 과세표준 x 세율 - 누진공제액
+            </p>
+            <p className="text-center text-sm text-income-600 mt-1">
+              + 지방소득세 = 소득세 x 10%
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-2 px-3 text-gray-600 font-medium">과세표준</th>
+                  <th className="text-center py-2 px-3 text-gray-600 font-medium">세율</th>
+                  <th className="text-right py-2 px-3 text-gray-600 font-medium">누진공제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {INCOME_BRACKETS.map((b, i) => (
+                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2 px-3 text-gray-700">
+                      {b.limit === Infinity ? '10억원 초과' :
+                       i === 0 ? `~${formatWonUnit(b.limit)}` :
+                       `${formatWonUnit(INCOME_BRACKETS[i-1].limit)} ~ ${formatWonUnit(b.limit)}`}
+                    </td>
+                    <td className="py-2 px-3 text-center font-semibold text-income-600">{b.rate * 100}%</td>
+                    <td className="py-2 px-3 text-right text-gray-600">{b.deduction > 0 ? formatWonUnit(b.deduction) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      );
+    }
+
+    function VATFormula() {
+      return (
+        <Card className="border-l-4 border-l-vat-500 fade-in">
+          <h3 className="text-lg font-bold text-vat-700 mb-3">부가가치세 계산 공식</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-vat-50 rounded-lg p-4">
+              <p className="font-semibold text-vat-700 mb-1">일반과세자</p>
+              <p className="text-sm text-vat-600">납부세액 = 매출세액 - 매입세액</p>
+              <p className="text-xs text-gray-500 mt-1">매출세액 = 공급가액(매출/1.1) x 10%</p>
+              <p className="text-xs text-gray-500">매입세액 = 공급가액(매입/1.1) x 10%</p>
+            </div>
+            <div className="bg-vat-50 rounded-lg p-4">
+              <p className="font-semibold text-vat-700 mb-1">간이과세자</p>
+              <p className="text-sm text-vat-600">납부세액 = 공급대가 x 부가가치율 x 10%</p>
+              <p className="text-xs text-gray-500 mt-1">업종별 부가가치율: 15%~40%</p>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    function WithholdFormula() {
+      return (
+        <Card className="border-l-4 border-l-withhold-500 fade-in">
+          <h3 className="text-lg font-bold text-withhold-700 mb-3">원천세 계산 공식</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="bg-withhold-50 rounded-lg p-4">
+              <p className="font-semibold text-withhold-700 mb-1">프리랜서 (사업소득)</p>
+              <p className="text-sm text-withhold-600">소득세 3% + 지방소득세 0.3%</p>
+              <p className="text-lg font-bold text-withhold-700 mt-1">= 3.3%</p>
+            </div>
+            <div className="bg-withhold-50 rounded-lg p-4">
+              <p className="font-semibold text-withhold-700 mb-1">기타소득</p>
+              <p className="text-sm text-withhold-600">소득세 20% + 지방소득세 2%</p>
+              <p className="text-lg font-bold text-withhold-700 mt-1">= 22%</p>
+            </div>
+            <div className="bg-withhold-50 rounded-lg p-4">
+              <p className="font-semibold text-withhold-700 mb-1">근로소득 (급여)</p>
+              <p className="text-sm text-withhold-600">간이세액표 기반 소득세율 적용</p>
+              <p className="text-xs text-gray-500 mt-1">+ 지방소득세 10%</p>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // Calculation Result Component
+    // ========================================
+    function ResultDisplay({ steps, taxType }) {
+      if (!steps || steps.length === 0) return null;
+      const colorMap = { income: 'income', vat: 'vat', withhold: 'withhold' };
+      const c = colorMap[taxType] || 'blue';
+
+      return (
+        <Card className={`border-t-4 border-t-${c}-500 fade-in mt-6`}>
+          <h3 className={`text-lg font-bold text-${c}-700 mb-4`}>계산 결과</h3>
+          <div className="space-y-2">
+            {steps.map((step, i) => (
+              <div
+                key={i}
+                className={`flex justify-between items-center py-2.5 px-3 rounded-lg ${
+                  step.highlight ? `bg-${c}-50 border border-${c}-200` : i % 2 === 0 ? 'bg-gray-50' : ''
+                }`}
+              >
+                <span className={`text-sm ${step.highlight ? `font-bold text-${c}-700` : 'text-gray-600'}`}>
+                  {step.label}
+                </span>
+                <span className={`font-semibold ${step.highlight ? `text-${c}-700 text-lg` : 'text-gray-800'}`}>
+                  {typeof step.value === 'number' ? `${formatWon(step.value)}원` : step.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // History Sidebar Component
+    // ========================================
+    function HistorySidebar({ isOpen, onToggle, history, onClear, onSelect }) {
+      return (
+        <>
+          {isOpen && (
+            <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={onToggle} />
+          )}
+          <aside
+            className={`fixed top-0 left-0 h-full w-80 bg-white shadow-xl z-40 transform transition-transform duration-300 ${
+              isOpen ? 'translate-x-0 sidebar-enter' : '-translate-x-full'
+            } lg:translate-x-0 lg:static lg:shadow-none lg:border-r lg:border-gray-200 lg:z-0`}
+          >
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h2 className="text-lg font-bold text-gray-800">계산 히스토리</h2>
+                <div className="flex gap-2">
+                  {history.length > 0 && (
+                    <button onClick={onClear} className="text-xs text-red-500 hover:text-red-700 cursor-pointer">
+                      전체 삭제
+                    </button>
+                  )}
+                  <button onClick={onToggle} className="lg:hidden text-gray-400 hover:text-gray-600 cursor-pointer">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {history.length === 0 ? (
+                  <div className="text-center text-gray-400 mt-10">
+                    <p className="text-4xl mb-2">📝</p>
+                    <p className="text-sm">계산 기록이 없습니다</p>
+                  </div>
+                ) : (
+                  history.map((item, i) => {
+                    const typeInfo = TAX_TYPES[item.taxType];
+                    const colorMap = { income: 'blue', vat: 'green', withhold: 'purple' };
+                    const c = colorMap[item.taxType];
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => onSelect(item)}
+                        className={`w-full text-left p-3 rounded-lg border border-gray-100 hover:border-${c}-300 hover:bg-${c}-50 transition-all cursor-pointer group`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm">{typeInfo.icon}</span>
+                          <span className={`text-xs font-semibold text-${c}-600`}>{typeInfo.label}</span>
+                          {item.subType && (
+                            <span className="text-xs text-gray-400">({item.subType})</span>
+                          )}
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-xs text-gray-400">입력금액</p>
+                            <p className="text-sm font-medium text-gray-700">{formatWonUnit(item.inputAmount)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-400">세액</p>
+                            <p className={`text-sm font-bold text-${c}-600`}>{formatWonUnit(item.taxAmount)}</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-300 mt-1">{item.date}</p>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </aside>
+        </>
+      );
+    }
+
+    // ========================================
+    // Tax Type Tab Component
+    // ========================================
+    function TaxTypeTabs({ selected, onSelect }) {
+      return (
+        <div className="flex gap-2 mb-6">
+          {Object.values(TAX_TYPES).map((t) => {
+            const active = selected === t.key;
+            const colorClasses = {
+              income: active ? 'bg-income-600 text-white shadow-md' : 'bg-white text-income-600 border-2 border-income-200 hover:bg-income-50',
+              vat: active ? 'bg-vat-600 text-white shadow-md' : 'bg-white text-vat-600 border-2 border-vat-200 hover:bg-vat-50',
+              withhold: active ? 'bg-withhold-600 text-white shadow-md' : 'bg-white text-withhold-600 border-2 border-withhold-200 hover:bg-withhold-50',
+            };
+            return (
+              <button
+                key={t.key}
+                onClick={() => onSelect(t.key)}
+                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all cursor-pointer ${colorClasses[t.color]}`}
+              >
+                <span className="block text-lg">{t.icon}</span>
+                <span className="block text-sm mt-0.5">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ========================================
+    // Income Tax Form
+    // ========================================
+    function IncomeTaxForm({ onCalculate }) {
+      const [income, setIncome] = useState(0);
+
+      const handleCalc = () => {
+        if (income <= 0) return;
+        const result = calculateIncomeTax(income);
+        onCalculate({
+          taxType: 'income',
+          inputAmount: income,
+          taxAmount: result.totalTax,
+          steps: result.steps,
+          subType: null,
+        });
+      };
+
+      return (
+        <Card className="fade-in">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">종합소득세 계산</h3>
+          <NumberInput
+            label="과세표준 (연간 소득금액)"
+            value={income}
+            onChange={setIncome}
+            placeholder="예: 50,000,000"
+          />
+          <Button variant="income" className="w-full mt-4" size="lg" onClick={handleCalc} disabled={income <= 0}>
+            계산하기
+          </Button>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // VAT Form
+    // ========================================
+    function VATForm({ onCalculate }) {
+      const [taxerType, setTaxerType] = useState('general');
+      const [sales, setSales] = useState(0);
+      const [purchases, setPurchases] = useState(0);
+      const [industryRate, setIndustryRate] = useState(15);
+
+      const handleCalc = () => {
+        if (sales <= 0) return;
+        const result = calculateVAT(sales, purchases, taxerType, industryRate);
+        onCalculate({
+          taxType: 'vat',
+          inputAmount: sales,
+          taxAmount: result.tax,
+          steps: result.steps,
+          subType: taxerType === 'general' ? '일반과세자' : '간이과세자',
+        });
+      };
+
+      return (
+        <Card className="fade-in">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">부가가치세 계산</h3>
+          <div className="space-y-4">
+            <RadioGroup
+              label="과세자 유형"
+              options={[
+                { value: 'general', label: '일반과세자' },
+                { value: 'simple', label: '간이과세자' },
+              ]}
+              value={taxerType}
+              onChange={setTaxerType}
+              colorClass="green"
+            />
+            <NumberInput label="매출액 (공급대가)" value={sales} onChange={setSales} />
+            {taxerType === 'general' ? (
+              <NumberInput label="매입액" value={purchases} onChange={setPurchases} />
+            ) : (
+              <SelectInput
+                label="업종별 부가가치율"
+                value={industryRate}
+                onChange={(v) => setIndustryRate(Number(v))}
+                options={VAT_INDUSTRY_RATES.map(r => ({ value: r.rate, label: `${r.rate}% - ${r.label}` }))}
+              />
+            )}
+            <Button variant="vat" className="w-full" size="lg" onClick={handleCalc} disabled={sales <= 0}>
+              계산하기
+            </Button>
+          </div>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // Withholding Tax Form
+    // ========================================
+    function WithholdForm({ onCalculate }) {
+      const [incomeType, setIncomeType] = useState('freelancer');
+      const [income, setIncome] = useState(0);
+
+      const handleCalc = () => {
+        if (income <= 0) return;
+        const result = calculateWithholdingTax(income, incomeType);
+        const subTypeMap = { freelancer: '프리랜서(3.3%)', other: '기타소득(22%)', salary: '근로소득' };
+        onCalculate({
+          taxType: 'withhold',
+          inputAmount: income,
+          taxAmount: result.tax,
+          steps: result.steps,
+          subType: subTypeMap[incomeType],
+        });
+      };
+
+      return (
+        <Card className="fade-in">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">원천세 계산</h3>
+          <div className="space-y-4">
+            <RadioGroup
+              label="소득 유형"
+              options={[
+                { value: 'freelancer', label: '프리랜서 (사업소득)' },
+                { value: 'other', label: '기타소득' },
+                { value: 'salary', label: '근로소득 (급여)' },
+              ]}
+              value={incomeType}
+              onChange={setIncomeType}
+              colorClass="purple"
+            />
+            <NumberInput
+              label={incomeType === 'salary' ? '연간 급여 총액' : '지급액'}
+              value={income}
+              onChange={setIncome}
+            />
+            <Button variant="withhold" className="w-full" size="lg" onClick={handleCalc} disabled={income <= 0}>
+              계산하기
+            </Button>
+          </div>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // App Component
+    // ========================================
+    function App() {
+      const [taxType, setTaxType] = useState('income');
+      const [result, setResult] = useState(null);
+      const [history, setHistory] = useState(() => {
+        try {
+          return JSON.parse(localStorage.getItem('tax_calc_history') || '[]');
+        } catch { return []; }
+      });
+      const [sidebarOpen, setSidebarOpen] = useState(false);
+
+      useEffect(() => {
+        localStorage.setItem('tax_calc_history', JSON.stringify(history));
+      }, [history]);
+
+      const handleCalculate = useCallback((calcResult) => {
+        setResult(calcResult);
+        const entry = {
+          id: Date.now(),
+          ...calcResult,
+          date: new Date().toLocaleString('ko-KR', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit',
+          }),
+        };
+        setHistory(prev => [entry, ...prev].slice(0, 50));
+      }, []);
+
+      const handleHistorySelect = useCallback((item) => {
+        setTaxType(item.taxType);
+        setResult(item);
+        setSidebarOpen(false);
+      }, []);
+
+      const handleClearHistory = useCallback(() => {
+        setHistory([]);
+        localStorage.removeItem('tax_calc_history');
+      }, []);
+
+      const FormulaComponent = { income: IncomeFormula, vat: VATFormula, withhold: WithholdFormula }[taxType];
+      const FormComponent = { income: IncomeTaxForm, vat: VATForm, withhold: WithholdForm }[taxType];
+
+      return (
+        <div className="flex min-h-screen">
+          <HistorySidebar
+            isOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen(o => !o)}
+            history={history}
+            onClear={handleClearHistory}
+            onSelect={handleHistorySelect}
+          />
+
+          <main className="flex-1 min-h-screen">
+            {/* Header */}
+            <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
+              <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+                <button
+                  onClick={() => setSidebarOpen(o => !o)}
+                  className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 cursor-pointer"
+                  aria-label="히스토리 열기"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">세금 계산기</h1>
+                  <p className="text-xs text-gray-400">종합소득세 / 부가가치세 / 원천세</p>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => setSidebarOpen(o => !o)}
+                    className="hidden lg:flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    히스토리 ({history.length})
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {/* Content */}
+            <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+              <TaxTypeTabs selected={taxType} onSelect={(t) => { setTaxType(t); setResult(null); }} />
+              <FormulaComponent />
+              <FormComponent onCalculate={handleCalculate} />
+              {result && result.taxType === taxType && (
+                <ResultDisplay steps={result.steps} taxType={result.taxType} />
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
