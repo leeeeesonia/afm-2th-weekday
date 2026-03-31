@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포켓몬 도감 검색</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'sans-serif'],
+          },
+          colors: {
+            pokemon: {
+              red: '#E3350D',
+              blue: '#3B4CCA',
+              yellow: '#FFCB05',
+              darkblue: '#1D2C5E',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .animate-fade-in-up { animation: fadeInUp 0.5s ease-out; }
+    .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+    // ========================================
+    // 📦 PokeAPI Configuration & Data
+    // ========================================
+    const API_BASE_URL = 'https://pokeapi.co/api/v2';
+
+    const TYPE_MAP = {
+      normal: { ko: '노말', color: '#A8A878' },
+      fire: { ko: '불꽃', color: '#F08030' },
+      water: { ko: '물', color: '#6890F0' },
+      electric: { ko: '전기', color: '#F8D030' },
+      grass: { ko: '풀', color: '#78C850' },
+      ice: { ko: '얼음', color: '#98D8D8' },
+      fighting: { ko: '격투', color: '#C03028' },
+      poison: { ko: '독', color: '#A040A0' },
+      ground: { ko: '땅', color: '#E0C068' },
+      flying: { ko: '비행', color: '#A890F0' },
+      psychic: { ko: '에스퍼', color: '#F85888' },
+      bug: { ko: '벌레', color: '#A8B820' },
+      rock: { ko: '바위', color: '#B8A038' },
+      ghost: { ko: '고스트', color: '#705898' },
+      dragon: { ko: '드래곤', color: '#7038F8' },
+      dark: { ko: '악', color: '#705848' },
+      steel: { ko: '강철', color: '#B8B8D0' },
+      fairy: { ko: '페어리', color: '#EE99AC' },
+    };
+
+    const QUICK_SEARCH = [
+      { name: 'pikachu', label: '피카츄' },
+      { name: 'charizard', label: '리자몽' },
+      { name: 'mewtwo', label: '뮤츠' },
+      { name: 'eevee', label: '이브이' },
+      { name: 'lucario', label: '루카리오' },
+    ];
+
+    // ========================================
+    // 🔗 Pokemon List Hook (for autocomplete)
+    // ========================================
+    function usePokemonList() {
+      const [list, setList] = useState([]);
+      const [listLoading, setListLoading] = useState(true);
+
+      useEffect(() => {
+        async function fetchList() {
+          try {
+            // Fetch all pokemon names
+            const res = await fetch(`${API_BASE_URL}/pokemon?limit=1025`);
+            const data = await res.json();
+            const englishList = data.results.map((p, i) => ({
+              id: i + 1,
+              nameEn: p.name,
+              nameKo: null,
+            }));
+
+            // Fetch Korean names from species (batch by fetching the species list)
+            // We'll fetch Korean names on-demand from a pre-built list via species
+            // For efficiency, fetch all species names at once
+            const speciesRes = await fetch(`${API_BASE_URL}/pokemon-species?limit=1025`);
+            const speciesData = await speciesRes.json();
+
+            // Fetch Korean names in parallel batches
+            const batchSize = 50;
+            const allPokemon = [...englishList];
+
+            for (let i = 0; i < speciesData.results.length; i += batchSize) {
+              const batch = speciesData.results.slice(i, i + batchSize);
+              const responses = await Promise.all(
+                batch.map(s => fetch(s.url).then(r => r.json()).catch(() => null))
+              );
+              responses.forEach((specData) => {
+                if (!specData) return;
+                const koName = specData.names?.find(n => n.language.name === 'ko')?.name;
+                if (koName && allPokemon[specData.id - 1]) {
+                  allPokemon[specData.id - 1].nameKo = koName;
+                }
+              });
+            }
+
+            setList(allPokemon);
+          } catch (err) {
+            console.error('Failed to load pokemon list:', err);
+          } finally {
+            setListLoading(false);
+          }
+        }
+        fetchList();
+      }, []);
+
+      return { list, listLoading };
+    }
+
+    // ========================================
+    // 🔗 Pokemon Search Hook
+    // ========================================
+    function usePokemonSearch() {
+      const [pokemon, setPokemon] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+
+      const search = useCallback(async (query) => {
+        const trimmed = query.trim().toLowerCase();
+        if (!trimmed) {
+          setPokemon(null);
+          setError(null);
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setPokemon(null);
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/pokemon/${trimmed}`);
+          if (!res.ok) throw new Error('not_found');
+          const data = await res.json();
+
+          const speciesRes = await fetch(data.species.url);
+          const speciesData = await speciesRes.json();
+
+          const nameKo = speciesData.names.find(n => n.language.name === 'ko')?.name || data.name;
+          const flavorEntry = speciesData.flavor_text_entries.find(f => f.language.name === 'ko');
+          const description = flavorEntry
+            ? flavorEntry.flavor_text.replace(/\n|\f/g, ' ')
+            : '설명이 없습니다.';
+
+          const types = data.types.map(t => {
+            const typeInfo = TYPE_MAP[t.type.name] || { ko: t.type.name, color: '#A8A878' };
+            return { name: typeInfo.ko, color: typeInfo.color };
+          });
+
+          setPokemon({
+            id: data.id,
+            nameKo,
+            nameEn: data.name.charAt(0).toUpperCase() + data.name.slice(1),
+            types,
+            height: (data.height / 10).toFixed(1),
+            weight: (data.weight / 10).toFixed(1),
+            image: data.sprites.other['official-artwork'].front_default,
+            description,
+            stats: data.stats.map(s => ({
+              name: s.stat.name,
+              value: s.base_stat,
+            })),
+          });
+        } catch (err) {
+          setError(err.message === 'not_found' ? 'not_found' : 'error');
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      return { pokemon, loading, error, search };
+    }
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function TypeBadge({ name, color }) {
+      return (
+        <span
+          className="inline-block px-3 py-1 rounded-full text-white text-xs font-bold tracking-wide shadow-sm"
+          style={{ backgroundColor: color }}
+        >
+          {name}
+        </span>
+      );
+    }
+
+    function StatRow({ label, value, unit }) {
+      return (
+        <div className="flex items-center justify-between py-1">
+          <span className="text-gray-500 text-sm">{label}</span>
+          <span className="font-bold text-gray-800">{value}{unit}</span>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🃏 Pokemon Card Component
+    // ========================================
+    const STAT_NAMES = {
+      hp: 'HP',
+      attack: '공격',
+      defense: '방어',
+      'special-attack': '특수공격',
+      'special-defense': '특수방어',
+      speed: '스피드',
+    };
+
+    function StatBar({ name, value }) {
+      const maxStat = 255;
+      const percentage = (value / maxStat) * 100;
+      const barColor = value >= 100 ? '#48BB78' : value >= 60 ? '#F6AD55' : '#FC8181';
+      return (
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-gray-500 text-xs w-16 text-right">{STAT_NAMES[name] || name}</span>
+          <span className="text-gray-800 text-xs font-bold w-8 text-right">{value}</span>
+          <div className="flex-1 bg-gray-200 rounded-full h-2">
+            <div
+              className="h-2 rounded-full transition-all duration-700"
+              style={{ width: `${percentage}%`, backgroundColor: barColor }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    function PokemonCard({ pokemon }) {
+      const gradientColor = pokemon.types[0].color;
+
+      return (
+        <div className="animate-fade-in-up max-w-sm mx-auto">
+          <div
+            className="relative rounded-3xl shadow-2xl overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, ${gradientColor}22, ${gradientColor}44)`,
+            }}
+          >
+            <div className="relative px-6 pt-6 pb-2 flex items-center justify-between">
+              <span className="text-gray-400 font-bold text-lg">
+                #{String(pokemon.id).padStart(3, '0')}
+              </span>
+              <div className="flex gap-1.5">
+                {pokemon.types.map((type) => (
+                  <TypeBadge key={type.name} name={type.name} color={type.color} />
+                ))}
+              </div>
+            </div>
+
+            <div className="relative flex justify-center py-4">
+              <div className="absolute inset-0 flex items-center justify-center opacity-10 animate-spin-slow">
+                <svg viewBox="0 0 100 100" className="w-48 h-48">
+                  <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="3" />
+                  <line x1="2" y1="50" x2="98" y2="50" stroke="currentColor" strokeWidth="3" />
+                  <circle cx="50" cy="50" r="14" fill="none" stroke="currentColor" strokeWidth="3" />
+                  <circle cx="50" cy="50" r="7" fill="currentColor" />
+                </svg>
+              </div>
+              <img
+                src={pokemon.image}
+                alt={pokemon.nameKo}
+                className="relative z-10 w-48 h-48 object-contain animate-float drop-shadow-lg"
+              />
+            </div>
+
+            <div className="bg-white rounded-t-3xl px-6 pt-6 pb-6 -mt-4 relative z-20">
+              <div className="text-center mb-4">
+                <h2 className="text-2xl font-black text-gray-900">{pokemon.nameKo}</h2>
+                <p className="text-gray-400 text-sm font-medium">{pokemon.nameEn}</p>
+              </div>
+
+              <p className="text-gray-600 text-sm text-center leading-relaxed mb-5 px-2">
+                {pokemon.description}
+              </p>
+
+              <div className="bg-gray-50 rounded-xl p-4 space-y-1">
+                <StatRow label="키" value={pokemon.height} unit=" m" />
+                <StatRow label="몸무게" value={pokemon.weight} unit=" kg" />
+              </div>
+
+              <div className="mt-4 space-y-0.5">
+                <h3 className="text-sm font-bold text-gray-700 mb-2">기본 스탯</h3>
+                {pokemon.stats.map((stat) => (
+                  <StatBar key={stat.name} name={stat.name} value={stat.value} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔎 Search Component with Autocomplete
+    // ========================================
+    function SearchBar({ value, onChange, onSelect, onClear, suggestions, showSuggestions, onFocus, onBlur }) {
+      const inputRef = useRef(null);
+      const [highlightIndex, setHighlightIndex] = useState(-1);
+      const suggestionsRef = useRef(null);
+
+      useEffect(() => {
+        inputRef.current?.focus();
+      }, []);
+
+      useEffect(() => {
+        setHighlightIndex(-1);
+      }, [suggestions]);
+
+      const handleKeyDown = (e) => {
+        if (!showSuggestions || suggestions.length === 0) {
+          if (e.key === 'Enter') onSelect(value);
+          return;
+        }
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setHighlightIndex(prev => Math.min(prev + 1, suggestions.length - 1));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setHighlightIndex(prev => Math.max(prev - 1, 0));
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (highlightIndex >= 0 && highlightIndex < suggestions.length) {
+            onSelect(suggestions[highlightIndex].nameEn);
+          } else if (suggestions.length > 0) {
+            onSelect(suggestions[0].nameEn);
+          }
+        } else if (e.key === 'Escape') {
+          inputRef.current?.blur();
+        }
+      };
+
+      return (
+        <div className="relative max-w-md mx-auto">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={onFocus}
+              onBlur={onBlur}
+              placeholder="포켓몬 이름 또는 번호 검색 (한글/영어)"
+              className="w-full pl-12 pr-12 py-4 rounded-2xl border-2 border-gray-200 focus:border-pokemon-red focus:ring-4 focus:ring-red-100 outline-none text-gray-800 text-base font-medium shadow-sm transition-all duration-200 bg-white"
+              aria-label="포켓몬 검색"
+              autoComplete="off"
+            />
+            {value && (
+              <button
+                onClick={onClear}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="검색어 지우기"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Autocomplete Dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden max-h-72 overflow-y-auto"
+            >
+              {suggestions.map((s, index) => (
+                <button
+                  key={s.id}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onSelect(s.nameEn);
+                  }}
+                  className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
+                    index === highlightIndex ? 'bg-red-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <img
+                    src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${s.id}.png`}
+                    alt={s.nameKo || s.nameEn}
+                    className="w-10 h-10 object-contain"
+                    loading="lazy"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-800 text-sm">{s.nameKo || s.nameEn}</span>
+                      {s.nameKo && (
+                        <span className="text-gray-400 text-xs capitalize">{s.nameEn}</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-gray-300 text-xs font-mono">#{String(s.id).padStart(3, '0')}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📋 Quick Chip Buttons
+    // ========================================
+    function QuickChips({ onSelect }) {
+      return (
+        <div className="flex flex-wrap justify-center gap-2 mt-4">
+          {QUICK_SEARCH.map((p) => (
+            <button
+              key={p.name}
+              onClick={() => onSelect(p.name)}
+              className="px-3 py-1.5 rounded-full text-xs font-bold border-2 border-gray-200 text-gray-500 hover:border-pokemon-red hover:text-pokemon-red hover:bg-red-50 transition-all duration-200"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // ========================================
+    // ⏳ Loading Component
+    // ========================================
+    function LoadingState() {
+      return (
+        <div className="text-center py-16 animate-fade-in-up">
+          <div className="relative inline-block mb-4">
+            <svg viewBox="0 0 100 100" className="w-20 h-20 text-pokemon-red animate-spin" style={{ animationDuration: '1s' }}>
+              <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="3" />
+              <path d="M2 50 H38" stroke="currentColor" strokeWidth="3" />
+              <path d="M62 50 H98" stroke="currentColor" strokeWidth="3" />
+              <circle cx="50" cy="50" r="12" fill="none" stroke="currentColor" strokeWidth="3" />
+              <circle cx="50" cy="50" r="5" fill="currentColor" />
+              <path d="M2 50 A48 48 0 0 1 98 50" fill="rgba(227,53,13,0.2)" />
+            </svg>
+          </div>
+          <p className="text-gray-500 font-medium">포켓몬을 찾는 중...</p>
+        </div>
+      );
+    }
+
+    // ========================================
+    // ❌ Not Found Component
+    // ========================================
+    function NotFound({ query }) {
+      return (
+        <div className="animate-fade-in-up text-center py-12 max-w-sm mx-auto">
+          <div className="text-6xl mb-4">😢</div>
+          <h3 className="text-xl font-bold text-gray-700 mb-2">포켓몬을 찾을 수 없습니다</h3>
+          <p className="text-gray-400 text-sm">
+            "<span className="font-semibold text-gray-600">{query}</span>"에 해당하는 포켓몬이 없습니다.
+          </p>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🏠 Empty State
+    // ========================================
+    function EmptyState({ listLoading }) {
+      return (
+        <div className="text-center py-12">
+          <div className="relative inline-block mb-6">
+            <svg viewBox="0 0 100 100" className="w-24 h-24 text-gray-300 animate-spin-slow">
+              <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path d="M2 50 H38" stroke="currentColor" strokeWidth="2" />
+              <path d="M62 50 H98" stroke="currentColor" strokeWidth="2" />
+              <circle cx="50" cy="50" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
+              <circle cx="50" cy="50" r="5" fill="currentColor" />
+              <path d="M2 50 A48 48 0 0 1 98 50" fill="rgba(227,53,13,0.1)" />
+            </svg>
+          </div>
+          <p className="text-gray-400 font-medium">
+            포켓몬 이름이나 번호를 입력해 주세요!
+          </p>
+          <p className="text-gray-300 text-sm mt-1">
+            한글, 영어, 번호 모두 검색 가능
+          </p>
+          {listLoading && (
+            <p className="text-gray-300 text-xs mt-3">포켓몬 목록 불러오는 중...</p>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+    function App() {
+      const [query, setQuery] = useState('');
+      const [focused, setFocused] = useState(false);
+      const { pokemon, loading, error, search } = usePokemonSearch();
+      const { list, listLoading } = usePokemonList();
+
+      // Filter suggestions based on query (Korean, English, or number)
+      const suggestions = useMemo(() => {
+        const trimmed = query.trim().toLowerCase();
+        if (!trimmed || trimmed.length < 1) return [];
+
+        const results = list.filter((p) => {
+          // Match by number
+          if (!isNaN(trimmed) && String(p.id) === trimmed) return true;
+          // Match by English name (partial)
+          if (p.nameEn.toLowerCase().includes(trimmed)) return true;
+          // Match by Korean name (partial)
+          if (p.nameKo && p.nameKo.includes(trimmed)) return true;
+          return false;
+        });
+
+        return results.slice(0, 8);
+      }, [query, list]);
+
+      const showSuggestions = focused && query.trim().length > 0 && !loading;
+
+      const handleSelect = (nameEn) => {
+        setQuery(nameEn);
+        setFocused(false);
+        search(nameEn);
+      };
+
+      const handleClear = () => {
+        setQuery('');
+        search('');
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-red-50 via-white to-gray-50">
+          {/* Header */}
+          <header className="bg-gradient-to-r from-pokemon-red to-red-600 shadow-lg">
+            <div className="max-w-2xl mx-auto px-4 py-6 text-center">
+              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                포켓몬 도감
+              </h1>
+              <p className="text-red-200 text-sm mt-1 font-medium">
+                PokeAPI 실시간 검색
+              </p>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="max-w-2xl mx-auto px-4 py-8">
+            {/* Search Section */}
+            <section className="mb-8">
+              <SearchBar
+                value={query}
+                onChange={setQuery}
+                onSelect={handleSelect}
+                onClear={handleClear}
+                suggestions={suggestions}
+                showSuggestions={showSuggestions}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setTimeout(() => setFocused(false), 150)}
+              />
+              <QuickChips onSelect={handleSelect} />
+            </section>
+
+            {/* Result Section */}
+            <section>
+              {loading && <LoadingState />}
+              {!loading && !pokemon && !error && <EmptyState listLoading={listLoading} />}
+              {!loading && pokemon && <PokemonCard pokemon={pokemon} />}
+              {!loading && error === 'not_found' && <NotFound query={query} />}
+              {!loading && error === 'error' && (
+                <div className="animate-fade-in-up text-center py-12">
+                  <div className="text-5xl mb-4">⚠️</div>
+                  <h3 className="text-lg font-bold text-gray-700">네트워크 오류</h3>
+                  <p className="text-gray-400 text-sm mt-1">잠시 후 다시 시도해 주세요.</p>
+                </div>
+              )}
+            </section>
+          </main>
+
+          {/* Footer */}
+          <footer className="text-center py-6 text-gray-300 text-xs">
+            Powered by PokeAPI
+          </footer>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔥 Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
