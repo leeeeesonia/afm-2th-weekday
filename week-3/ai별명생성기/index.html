@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>이번 생에는 내가 ___야</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Noto Serif KR', 'serif'],
+          },
+          colors: {
+            fantasy: {
+              lavender: '#e8d5f5',
+              pink: '#f5d5e0',
+              gold: '#d4a843',
+              darkPurple: '#2a0a3e',
+              midPurple: '#4a2060',
+              softPurple: '#9b72b0',
+              rose: '#c06080',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Noto Serif KR', serif;
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ===== 로맨스판타지 소설 표지 배경 ===== */
+    .fantasy-bg {
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(180, 100, 200, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 10%, rgba(255, 180, 200, 0.3) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 80%, rgba(100, 50, 150, 0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at 10% 90%, rgba(212, 168, 67, 0.15) 0%, transparent 40%),
+        linear-gradient(170deg, #1a0a2e 0%, #2a1040 20%, #3a1555 40%, #2a1040 60%, #1a0a2e 100%);
+    }
+
+    /* ===== 떨어지는 꽃잎 파티클 ===== */
+    @keyframes petalFall {
+      0% { transform: translateY(-10vh) rotate(0deg) scale(1); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 0.8; }
+      100% { transform: translateY(105vh) rotate(720deg) scale(0.5); opacity: 0; }
+    }
+
+    @keyframes petalSway {
+      0%, 100% { margin-left: 0; }
+      25% { margin-left: 30px; }
+      75% { margin-left: -30px; }
+    }
+
+    .petal {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1;
+      animation: petalFall linear infinite, petalSway 4s ease-in-out infinite;
+    }
+
+    /* ===== 반짝이 파티클 ===== */
+    @keyframes sparkle {
+      0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+      25% { opacity: 1; transform: scale(1.2) rotate(90deg); }
+      50% { opacity: 0.8; transform: scale(1) rotate(180deg); }
+      75% { opacity: 1; transform: scale(1.3) rotate(270deg); }
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    @keyframes starBurst {
+      0% { opacity: 0; transform: scale(0) rotate(0deg); filter: blur(2px); }
+      50% { opacity: 1; transform: scale(1.5) rotate(180deg); filter: blur(0); }
+      100% { opacity: 0; transform: scale(0) rotate(360deg); filter: blur(2px); }
+    }
+
+    .sparkle-item { animation: sparkle 3s ease-in-out infinite; }
+    .twinkle-item { animation: twinkle 2s ease-in-out infinite; }
+
+    /* ===== 시머 텍스트 (금빛 그라데이션) ===== */
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .shimmer-text {
+      background: linear-gradient(90deg, #ffd700, #fff8dc, #daa520, #ffeead, #ffd700, #fff, #ffd700);
+      background-size: 300% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+      filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
+    }
+
+    .shimmer-text-subtle {
+      background: linear-gradient(90deg, #e8b0d0, #f0c0e0, #d4a0c8, #f5d0e8, #e8b0d0);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 5s linear infinite;
+    }
+
+    /* ===== 금빛 글로우 ===== */
+    @keyframes goldenGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), 0 0 40px rgba(255, 215, 0, 0.1), inset 0 0 20px rgba(255, 215, 0, 0.05); }
+      50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5), 0 0 70px rgba(255, 215, 0, 0.2), inset 0 0 30px rgba(255, 215, 0, 0.1); }
+    }
+
+    .golden-glow { animation: goldenGlow 2.5s ease-in-out infinite; }
+
+    /* ===== 카드 애니메이션 ===== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(40px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-12px); }
+    }
+
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes borderShine {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    .card-enter { animation: fadeInUp 0.6s ease-out forwards; opacity: 0; }
+    .float-animation { animation: float 3s ease-in-out infinite; }
+    .loading-dot { animation: pulse-slow 1.5s ease-in-out infinite; }
+
+    /* ===== 카드 반짝이 보더 ===== */
+    .card-shine-border {
+      position: relative;
+      background: linear-gradient(135deg, rgba(42, 10, 62, 0.8), rgba(74, 32, 96, 0.6));
+      backdrop-filter: blur(12px);
+    }
+    .card-shine-border::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: inherit;
+      background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.4), rgba(255, 180, 220, 0.4), rgba(255, 215, 0, 0.4), transparent);
+      background-size: 200% 100%;
+      animation: borderShine 3s linear infinite;
+      z-index: -1;
+    }
+
+    /* ===== 결과 배너 ===== */
+    .result-banner {
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(255, 215, 0, 0.15) 0%, transparent 60%),
+        linear-gradient(135deg, #1a0a2e 0%, #3a1555 40%, #2a1040 70%, #1a0a2e 100%);
+    }
+
+    /* ===== 입력 폼 글래스 ===== */
+    .glass-form {
+      background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 215, 0, 0.15);
+    }
+
+    /* ===== 스크롤바 ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(155, 114, 176, 0.4); border-radius: 3px; }
+
+    /* ===== 빛줄기 효과 ===== */
+    .light-rays {
+      position: fixed;
+      top: -50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translateX(-50%);
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(255, 215, 0, 0.03) 10deg,
+        transparent 20deg,
+        transparent 40deg,
+        rgba(200, 150, 255, 0.02) 50deg,
+        transparent 60deg,
+        transparent 80deg,
+        rgba(255, 180, 220, 0.03) 90deg,
+        transparent 100deg
+      );
+      pointer-events: none;
+      z-index: 0;
+      animation: spin 60s linear infinite;
+    }
+
+    @keyframes spin { 100% { transform: translateX(-50%) rotate(360deg); } }
+  </style>
+</head>
+<body class="fantasy-bg min-h-screen text-gray-100">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useCallback, useRef, useEffect, useMemo } = React;
+
+    // ========================================
+    // Constants
+    // ========================================
+    const OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY';
+
+    const SYSTEM_PROMPT = `너는 로맨스 판타지 소설의 작명가이다. 사용자의 이름, 성격, 취미를 바탕으로 로맨스 판타지 소설에 나올 법한 화려하고 우아한 별명을 5개 생성하라. 각 별명은 한국어 또는 한국어+영어 조합으로, 판타지 세계관에 어울리는 신비롭고 매력적인 이름이어야 한다. 반드시 다음 JSON 형식으로만 응답하라: [{"nickname": "별명", "title": "칭호(예: 붉은 달의 검사)", "description": "이 별명의 의미와 유래 설명"}]`;
+
+    const PERSONALITIES = [
+      '활발하고 밝은', '차분하고 지적인', '츤데레', '다정하고 따뜻한',
+      '도도하고 카리스마 있는', '수줍지만 용감한', '장난스럽고 유쾌한',
+      '신비롭고 고독한', '정의로운 리더형', '감성적이고 예술적인'
+    ];
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '' }) {
+      const base = 'font-serif font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100';
+      const variants = {
+        primary: 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-fantasy-darkPurple hover:shadow-lg hover:shadow-yellow-500/30 border border-yellow-300/30',
+        secondary: 'bg-white/10 backdrop-blur-sm text-yellow-200 border border-yellow-400/30 hover:bg-white/20 hover:border-yellow-300/50',
+        gold: 'bg-gradient-to-r from-yellow-600 via-amber-400 to-yellow-600 text-fantasy-darkPurple hover:shadow-lg hover:shadow-yellow-400/40 font-bold',
+      };
+      const sizes = {
+        sm: 'px-4 py-2 text-sm',
+        md: 'px-6 py-3 text-base',
+        lg: 'px-8 py-4 text-lg',
+      };
+
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Input({ label, value, onChange, placeholder, type = 'text', className = '' }) {
+      return (
+        <div className={`flex flex-col gap-2 ${className}`}>
+          {label && <label className="text-yellow-200/80 font-semibold text-sm tracking-wide">{label}</label>}
+          <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            className="w-full px-4 py-3 rounded-xl bg-white/5 backdrop-blur-sm border border-yellow-400/20 focus:border-yellow-400/60 focus:ring-2 focus:ring-yellow-400/20 outline-none transition-all font-serif text-gray-100 placeholder:text-gray-500"
+          />
+        </div>
+      );
+    }
+
+    function Select({ label, value, onChange, options, placeholder, className = '' }) {
+      return (
+        <div className={`flex flex-col gap-2 ${className}`}>
+          {label && <label className="text-yellow-200/80 font-semibold text-sm tracking-wide">{label}</label>}
+          <select
+            value={value}
+            onChange={onChange}
+            className="w-full px-4 py-3 rounded-xl bg-white/5 backdrop-blur-sm border border-yellow-400/20 focus:border-yellow-400/60 focus:ring-2 focus:ring-yellow-400/20 outline-none transition-all font-serif text-gray-100 appearance-none cursor-pointer"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23d4a843' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center' }}
+          >
+            <option value="" style={{ background: '#2a1040', color: '#999' }}>{placeholder}</option>
+            {options.map((opt) => (
+              <option key={opt} value={opt} style={{ background: '#2a1040' }}>{opt}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 꽃잎 파티클 Component
+    // ========================================
+    function FallingPetals() {
+      const petals = useMemo(() => Array.from({ length: 15 }, (_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 10}s`,
+        duration: `${8 + Math.random() * 8}s`,
+        size: 12 + Math.random() * 16,
+        swayDelay: `${Math.random() * 4}s`,
+        emoji: ['🌸', '🪻', '✿', '❀', '🌷', '💮'][i % 6],
+        opacity: 0.3 + Math.random() * 0.4,
+      })), []);
+
+      return (
+        <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden">
+          {petals.map((p) => (
+            <span
+              key={p.id}
+              className="petal"
+              style={{
+                left: p.left,
+                animationDuration: `${p.duration}, 4s`,
+                animationDelay: `${p.delay}, ${p.swayDelay}`,
+                fontSize: `${p.size}px`,
+                opacity: p.opacity,
+              }}
+            >
+              {p.emoji}
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 반짝이 파티클 Component
+    // ========================================
+    function Sparkles({ count = 30 }) {
+      const sparkles = useMemo(() => Array.from({ length: count }, (_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 4}s`,
+        size: Math.random() * 16 + 6,
+        type: i % 3,
+      })), [count]);
+
+      return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-[2]">
+          {sparkles.map((s) => (
+            <span
+              key={s.id}
+              className={s.type === 0 ? 'sparkle-item' : 'twinkle-item'}
+              style={{
+                position: 'absolute',
+                left: s.left,
+                top: s.top,
+                animationDelay: s.delay,
+                fontSize: `${s.size}px`,
+                filter: `drop-shadow(0 0 ${s.size / 3}px rgba(255, 215, 0, 0.6))`,
+              }}
+            >
+              {['✦', '✧', '⋆', '✵', '⭒', '✶'][s.id % 6]}
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 로딩 Component
+    // ========================================
+    function LoadingState() {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 gap-6">
+          <div className="relative">
+            <div className="text-7xl float-animation" style={{ filter: 'drop-shadow(0 0 20px rgba(200, 150, 255, 0.5))' }}>🔮</div>
+            <span className="absolute -top-3 -right-4 text-2xl sparkle-item" style={{ animationDelay: '0s' }}>✨</span>
+            <span className="absolute -bottom-2 -left-5 text-xl sparkle-item" style={{ animationDelay: '0.7s' }}>⭒</span>
+            <span className="absolute top-1 -left-6 text-lg sparkle-item" style={{ animationDelay: '1.4s' }}>✦</span>
+            <span className="absolute -top-4 left-4 text-lg sparkle-item" style={{ animationDelay: '2s' }}>✶</span>
+          </div>
+          <div className="text-center">
+            <p className="shimmer-text-subtle font-semibold text-lg mb-2">
+              판타지 세계에서 당신의 이름을 찾고 있습니다
+            </p>
+            <div className="flex gap-1 justify-center">
+              <span className="loading-dot text-yellow-300 text-3xl" style={{ animationDelay: '0s' }}>.</span>
+              <span className="loading-dot text-yellow-300 text-3xl" style={{ animationDelay: '0.3s' }}>.</span>
+              <span className="loading-dot text-yellow-300 text-3xl" style={{ animationDelay: '0.6s' }}>.</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 닉네임 카드 Component
+    // ========================================
+    function NicknameCard({ item, index, selected, onSelect }) {
+      return (
+        <div
+          onClick={onSelect}
+          className={`card-enter rounded-2xl p-5 cursor-pointer transition-all duration-300
+            ${selected
+              ? 'card-shine-border golden-glow scale-105 border-2 border-yellow-400/50'
+              : 'card-shine-border hover:scale-[1.03] hover:shadow-xl hover:shadow-purple-500/20'
+            }`}
+          style={{ animationDelay: `${index * 0.12}s` }}
+        >
+          <div className="flex flex-col gap-2 relative z-10">
+            {selected && (
+              <div className="text-right">
+                <span className="text-xs bg-yellow-400/20 text-yellow-300 px-3 py-1 rounded-full font-bold border border-yellow-400/30">
+                  ★ 선택됨
+                </span>
+              </div>
+            )}
+            <h3 className={`text-xl font-bold ${selected ? 'shimmer-text' : 'text-yellow-200'}`}>
+              {item.nickname}
+            </h3>
+            <p className="text-sm text-pink-300/80 font-semibold italic">
+              『{item.title}』
+            </p>
+            <p className="text-sm text-gray-300/80 leading-relaxed mt-1">
+              {item.description}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 결과 배너 Modal Component (세계관 스토리 포함)
+    // ========================================
+    function ResultBanner({ nickname, worldview, worldviewLoading, onClose }) {
+      if (!nickname) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto"
+          onClick={onClose}
+        >
+          <div
+            className="result-banner rounded-3xl p-8 md:p-12 max-w-2xl w-full text-center relative overflow-hidden card-enter border border-yellow-400/20 my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 장식 반짝이 */}
+            <div className="absolute top-4 left-6 text-2xl sparkle-item" style={{ animationDelay: '0s' }}>✦</div>
+            <div className="absolute top-8 right-8 text-xl sparkle-item" style={{ animationDelay: '0.5s' }}>✧</div>
+            <div className="absolute bottom-10 left-10 text-lg sparkle-item" style={{ animationDelay: '1s' }}>⭒</div>
+            <div className="absolute bottom-6 right-6 text-2xl sparkle-item" style={{ animationDelay: '1.5s' }}>✨</div>
+            <div className="absolute top-1/2 left-4 text-sm sparkle-item" style={{ animationDelay: '2s' }}>✶</div>
+            <div className="absolute top-1/3 right-4 text-sm sparkle-item" style={{ animationDelay: '0.8s' }}>⋆</div>
+
+            <p className="text-pink-300/70 text-sm mb-2 tracking-[0.3em]">이번 생에는 내가</p>
+            <h2 className="text-3xl md:text-5xl font-black mb-2 shimmer-text leading-tight py-2">
+              {nickname.nickname}
+            </h2>
+            <p className="text-pink-300/70 text-sm mb-4 tracking-[0.3em]">야</p>
+            <p className="text-yellow-300 italic text-lg mb-5 font-semibold">
+              『{nickname.title}』
+            </p>
+            <div className="w-24 h-px bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent mx-auto mb-5" />
+            <p className="text-white/70 text-sm leading-relaxed mb-6 px-4">
+              {nickname.description}
+            </p>
+
+            {/* 세계관 스토리 섹션 */}
+            <div className="w-full bg-white/5 rounded-2xl p-5 md:p-6 mb-8 border border-yellow-400/10 text-left">
+              <h3 className="text-center shimmer-text-subtle font-bold text-base mb-4 tracking-wide">
+                ─── 캐릭터 세계관 ───
+              </h3>
+              {worldviewLoading ? (
+                <div className="text-center py-6">
+                  <p className="text-pink-300/60 text-sm mb-2">세계관을 구축하는 중...</p>
+                  <div className="flex gap-1 justify-center">
+                    <span className="loading-dot text-yellow-300 text-2xl" style={{ animationDelay: '0s' }}>.</span>
+                    <span className="loading-dot text-yellow-300 text-2xl" style={{ animationDelay: '0.3s' }}>.</span>
+                    <span className="loading-dot text-yellow-300 text-2xl" style={{ animationDelay: '0.6s' }}>.</span>
+                  </div>
+                </div>
+              ) : worldview ? (
+                <p className="text-gray-300/90 text-sm leading-[1.8] whitespace-pre-wrap">
+                  {worldview}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button variant="gold" size="md" onClick={onClose}>
+                ✦ 닫기
+              </Button>
+            </div>
+            <p className="text-white/30 text-xs mt-6 tracking-wide">이번 생에는 내가 ___야</p>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+    function App() {
+      const [name, setName] = useState('');
+      const [personality, setPersonality] = useState('');
+      const [hobby, setHobby] = useState('');
+      const [nicknames, setNicknames] = useState([]);
+      const [selectedIndex, setSelectedIndex] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [showBanner, setShowBanner] = useState(false);
+      const [worldview, setWorldview] = useState('');
+      const [worldviewLoading, setWorldviewLoading] = useState(false);
+
+      const generateWorldview = useCallback(async (nicknameData) => {
+        setWorldview('');
+        setWorldviewLoading(true);
+        try {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              messages: [
+                {
+                  role: 'system',
+                  content: '너는 로맨스 판타지 소설 작가이다. 주어진 캐릭터 정보를 바탕으로 해당 캐릭터가 살고 있는 로맨스 판타지 소설 속 세계관과 캐릭터 배경 스토리를 500자 내외로 작성하라. 화려하고 몰입감 있는 문체로, 마치 소설의 프롤로그처럼 작성하라. 순수 텍스트로만 응답하라.'
+                },
+                {
+                  role: 'user',
+                  content: `캐릭터 별명: ${nicknameData.nickname}\n칭호: ${nicknameData.title}\n설명: ${nicknameData.description}\n원래 이름: ${name}\n성격: ${personality}\n취미: ${hobby}`
+                }
+              ],
+              temperature: 0.9,
+              max_tokens: 1000,
+            }),
+          });
+
+          if (!response.ok) throw new Error('세계관 생성 실패');
+          const data = await response.json();
+          setWorldview(data.choices[0].message.content);
+        } catch (err) {
+          setWorldview('세계관을 불러오는 데 실패했습니다. 다시 시도해주세요.');
+        } finally {
+          setWorldviewLoading(false);
+        }
+      }, [name, personality, hobby]);
+
+      const generateNicknames = useCallback(async () => {
+        if (!name.trim() || !personality || !hobby.trim()) {
+          setError('모든 항목을 입력해주세요.');
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setNicknames([]);
+        setSelectedIndex(null);
+        setShowBanner(false);
+
+        try {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: `이름: ${name}\n성격: ${personality}\n취미: ${hobby}` }
+              ],
+              temperature: 0.9,
+              max_tokens: 1500,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`API 오류가 발생했습니다 (${response.status})`);
+          }
+
+          const data = await response.json();
+          const content = data.choices[0].message.content;
+
+          let parsed;
+          try {
+            const jsonMatch = content.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              parsed = JSON.parse(jsonMatch[0]);
+            } else {
+              throw new Error('JSON 형식을 찾을 수 없습니다.');
+            }
+          } catch (parseErr) {
+            throw new Error('응답을 파싱할 수 없습니다. 다시 시도해주세요.');
+          }
+
+          setNicknames(parsed);
+        } catch (err) {
+          setError(err.message || '알 수 없는 오류가 발생했습니다.');
+        } finally {
+          setLoading(false);
+        }
+      }, [name, personality, hobby]);
+
+      const handleSelect = (index) => {
+        setSelectedIndex(index);
+        setShowBanner(true);
+        generateWorldview(nicknames[index]);
+      };
+
+      const isFormValid = name.trim() && personality && hobby.trim();
+
+      return (
+        <div className="relative min-h-screen">
+          {/* 배경 이펙트 */}
+          <div className="light-rays" />
+          <FallingPetals />
+          <Sparkles />
+
+          <div className="relative z-10 max-w-3xl mx-auto px-4 py-10 md:py-16">
+            {/* ===== Header ===== */}
+            <header className="text-center mb-12">
+              <div className="text-5xl mb-4 float-animation" style={{ filter: 'drop-shadow(0 0 15px rgba(255, 215, 0, 0.4))' }}>👑</div>
+              <h1 className="text-4xl md:text-5xl font-black shimmer-text mb-4 leading-tight py-1">
+                이번 생에는 내가 ___야
+              </h1>
+              <p className="shimmer-text-subtle text-sm md:text-base tracking-wide">
+                당신만의 로맨스 판타지 이름을 찾아보세요
+              </p>
+              <div className="w-32 h-px bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent mx-auto mt-4" />
+            </header>
+
+            {/* ===== Input Form ===== */}
+            <div className="glass-form rounded-3xl p-6 md:p-8 mb-10 shadow-2xl shadow-purple-900/30">
+              <div className="grid gap-5">
+                <Input
+                  label="✦ 이름"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="예: 김소연"
+                />
+                <Select
+                  label="✦ 성격"
+                  value={personality}
+                  onChange={(e) => setPersonality(e.target.value)}
+                  options={PERSONALITIES}
+                  placeholder="성격을 선택해주세요"
+                />
+                <Input
+                  label="✦ 취미"
+                  value={hobby}
+                  onChange={(e) => setHobby(e.target.value)}
+                  placeholder="예: 독서, 검술, 마법 연구"
+                />
+              </div>
+
+              {error && (
+                <div className="mt-4 p-3 rounded-xl bg-red-900/30 border border-red-500/30 text-red-300 text-sm text-center">
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-6 text-center">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={generateNicknames}
+                  disabled={loading || !isFormValid}
+                >
+                  {loading ? '생성 중...' : '✦ 별명 생성하기 ✦'}
+                </Button>
+              </div>
+            </div>
+
+            {/* ===== Loading ===== */}
+            {loading && <LoadingState />}
+
+            {/* ===== Results ===== */}
+            {!loading && nicknames.length > 0 && (
+              <div>
+                <div className="text-center mb-8">
+                  <h2 className="text-xl font-bold shimmer-text-subtle">
+                    당신을 위한 판타지 별명
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-2">
+                    마음에 드는 별명을 선택해보세요
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+                  {nicknames.map((item, i) => (
+                    <NicknameCard
+                      key={i}
+                      item={item}
+                      index={i}
+                      selected={selectedIndex === i}
+                      onSelect={() => handleSelect(i)}
+                    />
+                  ))}
+                </div>
+
+                <div className="text-center">
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    onClick={generateNicknames}
+                    disabled={loading}
+                  >
+                    ↻ 재생성
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ===== Result Banner Modal ===== */}
+          {showBanner && selectedIndex !== null && (
+            <ResultBanner
+              nickname={nicknames[selectedIndex]}
+              worldview={worldview}
+              worldviewLoading={worldviewLoading}
+              onClose={() => setShowBanner(false)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
