@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>책사의 상담소</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            royal: {
+              900: '#0a0a1a',
+              800: '#111133',
+              700: '#1a1a44',
+              600: '#252560',
+              500: '#2d2d6b',
+            },
+            gold: {
+              400: '#d4a843',
+              500: '#c9952e',
+              600: '#b8860b',
+            }
+          },
+          fontFamily: {
+            serif: ['Noto Serif KR', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0a0a1a 0%, #111133 40%, #1a1044 100%);
+    }
+    .msg-ai {
+      background: linear-gradient(135deg, #1a1a44 0%, #252560 100%);
+      border-left: 3px solid #c9952e;
+    }
+    .msg-user {
+      background: linear-gradient(135deg, #2a1a0a 0%, #3a2a1a 100%);
+      border-right: 3px solid #c9952e;
+    }
+    .scroll-hidden::-webkit-scrollbar { width: 6px; }
+    .scroll-hidden::-webkit-scrollbar-track { background: transparent; }
+    .scroll-hidden::-webkit-scrollbar-thumb { background: #333366; border-radius: 3px; }
+    @keyframes pulse-gold {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+    .loading-dot { animation: pulse-gold 1.2s infinite; }
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+  </style>
+</head>
+<body class="min-h-screen font-serif text-gray-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useRef, useEffect, useCallback, forwardRef } = React;
+
+    // ========================================
+    // Constants
+    // ========================================
+    const SYSTEM_PROMPT = `너는 주군을 모시는 충성스러운 책사이다. 주군은 감성적이고 신중한 성격이라 결단을 내리기 어려워한다.
+너의 역할은 주군의 고민을 듣고, 명쾌하고 단호한 조언을 해주는 것이다.
+
+핵심 규칙:
+1. 항상 주군을 '주군' 또는 '주군이시여'라 칭하며, 존경과 충성을 담아 말하되, 결단력 있는 방향을 제시하라.
+2. 말투는 사극체를 사용하되 너무 어렵지 않게 하라.
+3. 주군의 고민을 깊이 분석하고, 명확한 전략과 행동 방안을 제시하라.
+4. 감정에 치우치지 말고, 대의와 실리를 따져 조언하라.
+5. 주군이 우유부단할 때는 단호하게 결단을 촉구하라.
+6. 답변은 너무 길지 않게 핵심을 담아 전달하라.
+
+말투 예시:
+- "주군이시여, 소신이 아뢰옵니다..."
+- "결단을 내리소서!"
+- "주군의 뜻이 곧 대의이옵니다."
+- "소신의 목숨을 걸고 아뢰옵건대..."
+- "이는 천재일우의 기회이옵니다!"
+- "주군께서 흔들리시면 아랫사람들이 더욱 불안해하옵니다."
+
+주군의 고민에 대해 항상 다음 구조로 답하라:
+1. 공감과 이해 (짧게)
+2. 상황 분석 (핵심만)
+3. 단호한 조언과 전략
+4. 격려와 결단 촉구`;
+
+    const API_URL = 'https://api.openai.com/v1/chat/completions';
+    const API_KEY = 'YOUR_OPENAI_API_KEY';
+    const MODEL = 'gpt-4o';
+
+    // ========================================
+    // Design System Components
+    // ========================================
+    function Card({ children, className = '' }) {
+      return (
+        <div className={`rounded-xl shadow-lg ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Button({ children, onClick, disabled, variant = 'primary', size = 'md', className = '' }) {
+      const base = 'font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-gold-500 hover:bg-gold-400 text-royal-900 shadow-md hover:shadow-gold-500/30',
+        ghost: 'bg-transparent hover:bg-white/10 text-gold-400 border border-gold-600/50',
+      };
+      const sizes = {
+        sm: 'px-3 py-1.5 text-sm',
+        md: 'px-5 py-2.5 text-base',
+        lg: 'px-6 py-3 text-lg',
+      };
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    const Input = forwardRef(function Input({ value, onChange, placeholder, onKeyDown, disabled, className = '' }, ref) {
+      return (
+        <input
+          ref={ref}
+          type="text"
+          value={value}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`w-full bg-royal-800/80 border border-gold-600/30 text-gray-100 placeholder-gray-500 rounded-lg px-4 py-3 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500/50 transition-all ${className}`}
+        />
+      );
+    });
+
+    function LoadingDots() {
+      return (
+        <div className="flex items-center gap-1.5 px-4 py-3">
+          <span className="loading-dot w-2 h-2 bg-gold-400 rounded-full inline-block"></span>
+          <span className="loading-dot w-2 h-2 bg-gold-400 rounded-full inline-block"></span>
+          <span className="loading-dot w-2 h-2 bg-gold-400 rounded-full inline-block"></span>
+          <span className="text-gold-400/60 text-sm ml-2">책사가 숙고 중이옵니다...</span>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Chat Message Component
+    // ========================================
+    function ChatMessage({ role, content }) {
+      const isUser = role === 'user';
+
+      return (
+        <div className={`flex gap-3 mb-4 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+          {/* Avatar */}
+          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+            isUser
+              ? 'bg-gradient-to-br from-yellow-600 to-yellow-800 shadow-md shadow-yellow-700/30'
+              : 'bg-gradient-to-br from-royal-600 to-royal-800 border border-gold-600/50 shadow-md shadow-purple-900/30'
+          }`}>
+            {isUser ? '👑' : '⚔️'}
+          </div>
+
+          {/* Message bubble */}
+          <div className={`max-w-[80%] sm:max-w-[70%] rounded-xl px-4 py-3 ${
+            isUser ? 'msg-user' : 'msg-ai'
+          }`}>
+            <div className={`text-xs mb-1 ${isUser ? 'text-yellow-500/70 text-right' : 'text-gold-400/70'}`}>
+              {isUser ? '주군' : '책사'}
+            </div>
+            <div className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+              {content}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    // ========================================
+    // App Component
+    // ========================================
+    function App() {
+      const [messages, setMessages] = useState([]);
+      const [input, setInput] = useState('');
+      const [isLoading, setIsLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const chatEndRef = useRef(null);
+      const inputRef = useRef(null);
+
+      // Welcome message
+      useEffect(() => {
+        setMessages([{
+          role: 'assistant',
+          content: '주군이시여, 소신 책사가 이 자리에서 주군의 고민을 기다리고 있사옵니다.\n\n무엇이 주군의 마음을 어지럽히고 있사옵니까? 어떤 고민이든 거리낌 없이 말씀하시옵소서. 소신이 목숨을 걸고 최선의 방도를 아뢰겠나이다.'
+        }]);
+      }, []);
+
+      // Auto-scroll
+      useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages, isLoading]);
+
+      const sendMessage = useCallback(async () => {
+        const trimmed = input.trim();
+        if (!trimmed || isLoading) return;
+
+        setError(null);
+        const userMessage = { role: 'user', content: trimmed };
+        const newMessages = [...messages, userMessage];
+        setMessages(newMessages);
+        setInput('');
+        setIsLoading(true);
+
+        try {
+          // Build conversation history for OpenAI API
+          const apiMessages = [
+            { role: 'system', content: SYSTEM_PROMPT },
+            ...newMessages.map(m => ({
+              role: m.role === 'assistant' ? 'assistant' : 'user',
+              content: m.content
+            }))
+          ];
+
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: MODEL,
+              max_tokens: 1024,
+              messages: apiMessages,
+            }),
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData?.error?.message || `API 요청 실패 (${response.status})`);
+          }
+
+          const data = await response.json();
+          const assistantContent = data.choices?.[0]?.message?.content || '소신이 말문이 막혔사옵니다...';
+
+          setMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
+        } catch (err) {
+          setError(err.message);
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: '주군이시여, 소신에게 잠시 문제가 생겼사옵니다. 다시 한번 말씀해 주시옵소서.'
+          }]);
+        } finally {
+          setIsLoading(false);
+          inputRef.current?.focus();
+        }
+      }, [input, isLoading, messages]);
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          sendMessage();
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col max-w-3xl mx-auto">
+          {/* ===== Header ===== */}
+          <header className="pt-6 pb-4 px-4 text-center">
+            <div className="flex items-center justify-center gap-3 mb-1">
+              <span className="text-3xl">⚔️</span>
+              <h1 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gold-400 to-yellow-300 tracking-wide">
+                책사의 상담소
+              </h1>
+              <span className="text-3xl">⚔️</span>
+            </div>
+            <p className="text-gold-400/60 text-sm sm:text-base">
+              주군의 고민을 해결해 드리겠나이다
+            </p>
+          </header>
+
+          {/* ===== Chat Area ===== */}
+          <main className="flex-1 overflow-y-auto scroll-hidden px-4 pb-2" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+            {messages.map((msg, i) => (
+              <ChatMessage key={i} role={msg.role} content={msg.content} />
+            ))}
+            {isLoading && (
+              <div className="flex gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg bg-gradient-to-br from-royal-600 to-royal-800 border border-gold-600/50">
+                  ⚔️
+                </div>
+                <div className="msg-ai rounded-xl">
+                  <LoadingDots />
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </main>
+
+          {/* ===== Error ===== */}
+          {error && (
+            <div className="mx-4 mb-2 px-4 py-2 bg-red-900/40 border border-red-700/50 rounded-lg text-red-300 text-sm flex items-center justify-between">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="text-red-400 hover:text-red-200 ml-2">
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* ===== Input Area ===== */}
+          <footer className="p-4 border-t border-gold-600/20 bg-royal-900/50 backdrop-blur">
+            <div className="flex gap-2 items-center">
+              <span className="text-xl hidden sm:block">👑</span>
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="주군의 고민을 말씀하시옵소서..."
+                disabled={isLoading}
+              />
+              <Button
+                onClick={sendMessage}
+                disabled={!input.trim() || isLoading}
+                className="flex-shrink-0"
+              >
+                <span className="hidden sm:inline">진언</span>
+                <span className="sm:hidden">전송</span>
+              </Button>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
