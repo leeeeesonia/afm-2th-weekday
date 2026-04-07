@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>할 일 관리</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Button({ variant = 'primary', size = 'md', disabled, onClick, type = 'button', className = '', children }) {
+      const base = 'inline-flex items-center justify-center font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-400',
+        secondary: 'bg-slate-200 text-slate-800 hover:bg-slate-300 focus:ring-slate-400',
+        danger: 'bg-rose-500 text-white hover:bg-rose-600 focus:ring-rose-400',
+        ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 focus:ring-slate-300',
+      };
+      const sizes = {
+        sm: 'text-xs px-2.5 py-1.5',
+        md: 'text-sm px-4 py-2',
+        lg: 'text-base px-5 py-2.5',
+      };
+      return (
+        <button
+          type={type}
+          disabled={disabled}
+          onClick={onClick}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Input({ value, onChange, onKeyDown, placeholder, type = 'text', className = '', ...rest }) {
+      return (
+        <input
+          type={type}
+          value={value}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          className={`w-full px-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder:text-slate-400 ${className}`}
+          {...rest}
+        />
+      );
+    }
+
+    function Card({ className = '', children }) {
+      return (
+        <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Badge({ className = '', children }) {
+      return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    // ========================================
+    // 📄 TodoApp Page
+    // ========================================
+
+    function TodoApp() {
+      const [todos, setTodos] = useState([]);
+      const [input, setInput] = useState('');
+
+      const remaining = todos.filter(t => !t.completed).length;
+
+      useEffect(() => {
+        fetch('/api/todos')
+          .then(r => r.json())
+          .then(json => {
+            if (json.success) setTodos(json.data);
+          })
+          .catch(err => console.error('failed to load todos', err));
+      }, []);
+
+      const addTodo = async () => {
+        const text = input.trim();
+        if (!text) return;
+        try {
+          const res = await fetch('/api/todos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: text }),
+          });
+          const json = await res.json();
+          if (json.success) {
+            setTodos(prev => [...prev, json.data]);
+            setInput('');
+          }
+        } catch (err) {
+          console.error('failed to add todo', err);
+        }
+      };
+
+      const toggleTodo = async (id) => {
+        const target = todos.find(t => t.id === id);
+        if (!target) return;
+        try {
+          const res = await fetch(`/api/todos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ completed: !target.completed }),
+          });
+          const json = await res.json();
+          if (json.success) {
+            setTodos(prev => prev.map(t => t.id === id ? json.data : t));
+          }
+        } catch (err) {
+          console.error('failed to toggle todo', err);
+        }
+      };
+
+      const deleteTodo = async (id) => {
+        try {
+          const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+          const json = await res.json();
+          if (json.success) {
+            setTodos(prev => prev.filter(t => t.id !== id));
+          }
+        } catch (err) {
+          console.error('failed to delete todo', err);
+        }
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter') addTodo();
+      };
+
+      return (
+        <div className="max-w-xl mx-auto px-4 py-10 sm:py-16">
+          <header className="mb-8 text-center">
+            <h1 className="text-3xl sm:text-4xl font-bold text-slate-800">할 일 관리</h1>
+            <p className="mt-2 text-sm text-slate-500">오늘 해야 할 일을 정리해 보세요.</p>
+          </header>
+
+          <Card className="p-5 sm:p-6">
+            {/* Input row */}
+            <div className="flex gap-2">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="할 일을 입력하세요"
+                aria-label="새 할 일"
+              />
+              <Button onClick={addTodo} disabled={!input.trim()}>
+                추가
+              </Button>
+            </div>
+
+            {/* Status */}
+            <div className="mt-5 flex items-center justify-between">
+              <Badge className="bg-indigo-50 text-indigo-700">
+                남은 할 일 {remaining}개
+              </Badge>
+              <span className="text-xs text-slate-400">전체 {todos.length}개</span>
+            </div>
+
+            {/* Todo list */}
+            <ul className="mt-4 divide-y divide-slate-100">
+              {todos.length === 0 && (
+                <li className="py-10 text-center text-sm text-slate-400">
+                  아직 등록된 할 일이 없어요.
+                </li>
+              )}
+              {todos.map(todo => (
+                <li key={todo.id} className="flex items-center gap-3 py-3 group">
+                  <input
+                    type="checkbox"
+                    checked={todo.completed}
+                    onChange={() => toggleTodo(todo.id)}
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-400 cursor-pointer"
+                    aria-label={`${todo.title} 완료 토글`}
+                  />
+                  <span
+                    onClick={() => toggleTodo(todo.id)}
+                    className={`flex-1 text-sm cursor-pointer select-none ${
+                      todo.completed ? 'line-through text-slate-400' : 'text-slate-800'
+                    }`}
+                  >
+                    {todo.title}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteTodo(todo.id)}
+                    className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 opacity-0 group-hover:opacity-100 focus:opacity-100 transition"
+                    aria-label="삭제"
+                  >
+                    삭제
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          <footer className="mt-6 text-center text-xs text-slate-400">
+            React + Tailwind 단일 파일 데모
+          </footer>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+
+    function App() {
+      return <TodoApp />;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

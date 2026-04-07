@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyJourney - AI 이미지 생성</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      background-color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #fafafa; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+
+    .gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .gradient-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .gradient-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .gradient-4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    .gradient-5 { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+    .gradient-6 { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+    .gradient-7 { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+    .gradient-8 { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+    .gradient-9 { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); }
+    .gradient-10 { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); }
+    .gradient-11 { background: linear-gradient(135deg, #232526 0%, #414345 100%); }
+    .gradient-12 { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); }
+
+    .style-thumb {
+      background-size: cover;
+      background-position: center;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: #e5e5e5;
+      border-radius: 2px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #7c3aed;
+      margin-top: -6px;
+      cursor: pointer;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+    }
+    .shimmer {
+      animation: shimmer 2s linear infinite;
+      background: linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent);
+      background-size: 1000px 100%;
+    }
+
+    .glow:focus-within {
+      box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.4), 0 8px 30px rgba(124, 58, 237, 0.12);
+      border-color: rgba(124, 58, 237, 0.5) !important;
+    }
+  </style>
+</head>
+<body class="text-neutral-900">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ========================================
+    // Design System Components
+    // ========================================
+    function IconButton({ children, active, onClick, title, className = "" }) {
+      return (
+        <button
+          onClick={onClick}
+          title={title}
+          className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all ${
+            active ? "bg-neutral-100 text-neutral-900" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+          } ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Chip({ label, active, onClick, icon }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+            active
+              ? "bg-violet-600 text-white border-violet-600"
+              : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300"
+          }`}
+        >
+          {icon}
+          {label}
+        </button>
+      );
+    }
+
+    function StyleCard({ name, gradient, active, onClick }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`group relative flex-shrink-0 w-28 rounded-xl overflow-hidden transition-all ${
+            active ? "ring-2 ring-violet-600 scale-105" : "ring-1 ring-neutral-200 hover:ring-neutral-400"
+          }`}
+        >
+          <div className={`${gradient} h-28 w-full relative`}>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5">
+            <p className="text-xs font-semibold text-white truncate">{name}</p>
+          </div>
+          {active && (
+            <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-violet-600 rounded-full flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          )}
+        </button>
+      );
+    }
+
+    function AspectRatioButton({ ratio, label, w, h, active, onClick }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border transition-all ${
+            active
+              ? "bg-violet-50 border-violet-600 text-violet-700"
+              : "bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-900"
+          }`}
+        >
+          <div
+            className={`border-2 rounded-sm ${active ? "border-violet-600" : "border-neutral-400"}`}
+            style={{ width: `${w}px`, height: `${h}px` }}
+          ></div>
+          <span className="text-xs font-medium">{ratio}</span>
+        </button>
+      );
+    }
+
+    function Slider({ label, value, onChange, min, max, step, valueLabel }) {
+      return (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wider">{label}</label>
+            <span className="text-xs font-mono text-violet-700 bg-violet-50 border border-violet-100 px-2 py-0.5 rounded">{valueLabel || value}</span>
+          </div>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
+      );
+    }
+
+    // ========================================
+    // Brand Logo (SVG)
+    // ========================================
+    function BrandLogo({ size = 36 }) {
+      // Apple-style app icon: superellipse-ish rounded square (~22% radius), soft gradient,
+      // monoline geometric mark (sparkle/star) inspired by SF Symbols.
+      return (
+        <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="bgGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="#a78bfa"/>
+              <stop offset="100%" stopColor="#f472b6"/>
+            </linearGradient>
+          </defs>
+          {/* Rounded square background, ~22% radius like an iOS app icon */}
+          <rect x="0" y="0" width="48" height="48" rx="10.6" fill="url(#bgGrad)"/>
+          {/* Monoline sparkle mark */}
+          <path
+            d="M24 13 L26.2 21.8 L35 24 L26.2 26.2 L24 35 L21.8 26.2 L13 24 L21.8 21.8 Z"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Small accent sparkle */}
+          <path
+            d="M35.5 11 L36.2 13.3 L38.5 14 L36.2 14.7 L35.5 17 L34.8 14.7 L32.5 14 L34.8 13.3 Z"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.9"
+          />
+        </svg>
+      );
+    }
+
+    // ========================================
+    // Common / Layout Components
+    // ========================================
+    function Sidebar({ activeNav, setActiveNav }) {
+      // Apple SF-Symbols-style: 1.5 stroke, round caps/joins, monoline outline
+      const navItems = [
+        { id: "home", label: "홈", icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 11.2 12 4.2l8.5 7v8.3a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/>
+            <path d="M9.75 21.3v-6.3a1 1 0 0 1 1-1h2.5a1 1 0 0 1 1 1v6.3"/>
+          </svg>
+        )},
+        { id: "explore", label: "탐색", icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M15.6 8.4 13.6 13.6 8.4 15.6 10.4 10.4z"/>
+          </svg>
+        )},
+        { id: "create", label: "생성", icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 4 L13.6 10.4 L20 12 L13.6 13.6 L12 20 L10.4 13.6 L4 12 L10.4 10.4 Z"/>
+            <path d="M18.5 4.5 L19 6.5 L21 7 L19 7.5 L18.5 9.5 L18 7.5 L16 7 L18 6.5 Z"/>
+          </svg>
+        )},
+        { id: "organize", label: "정리", icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l1.6 1.8h9.4A1.5 1.5 0 0 1 21 8.3v9.2A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>
+          </svg>
+        )},
+        { id: "chat", label: "채팅", icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.5 12c0 4-3.8 7.2-8.5 7.2-1 0-2-.2-2.9-.4l-4.6 1.5 1.6-3.7C4.7 15.4 3.5 13.8 3.5 12c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2z"/>
+          </svg>
+        )},
+      ];
+
+      return (
+        <aside className="w-60 flex-shrink-0 bg-neutral-50 border-r border-neutral-200 flex flex-col">
+          <div className="px-5 py-5 border-b border-neutral-200">
+            <div className="flex items-center gap-2.5">
+              <BrandLogo size={36} />
+              <div>
+                <h1 className="text-neutral-900 font-bold text-base leading-none">MyJourney</h1>
+                <p className="text-[10px] text-neutral-500 mt-1">v6.1 알파</p>
+              </div>
+            </div>
+          </div>
+
+          <nav className="flex-1 px-3 py-4 space-y-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveNav(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeNav === item.id
+                    ? "bg-violet-100 text-violet-700"
+                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                }`}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            ))}
+
+            <div className="pt-4 mt-4 border-t border-neutral-200">
+              <p className="px-3 mb-2 text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">내 작업</p>
+              {[
+                { label: "좋아요", count: 142 },
+                { label: "폴더", count: 8 },
+                { label: "보관함", count: 23 },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-all"
+                >
+                  <span>{item.label}</span>
+                  <span className="text-xs text-neutral-400">{item.count}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          <div className="p-3 border-t border-neutral-200">
+            <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-neutral-100 transition-all cursor-pointer">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                S
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-neutral-900 font-medium truncate">sonia.lee</p>
+                <p className="text-[10px] text-neutral-500">스탠다드 플랜</p>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-400">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
+    function TopBar() {
+      return (
+        <div className="h-14 flex-shrink-0 border-b border-neutral-200 bg-white/80 backdrop-blur-md flex items-center px-6 gap-4">
+          <div className="flex-1 max-w-xl relative">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              placeholder="이미지, 프롬프트, 크리에이터 검색..."
+              className="w-full bg-neutral-100 border border-neutral-200 rounded-lg py-2 pl-9 pr-3 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-violet-400 focus:bg-white transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <IconButton title="알림">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </IconButton>
+            <IconButton title="도움말">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </IconButton>
+            <button className="ml-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-pink-500 hover:from-violet-700 hover:to-pink-600 transition-all">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#fde047">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span className="text-xs font-semibold text-white">업그레이드</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Page Sub-components
+    // ========================================
+    const STYLES = [
+      { id: "photoreal", name: "사실적", gradient: "gradient-11" },
+      { id: "anime", name: "애니메이션", gradient: "gradient-2" },
+      { id: "oil", name: "유화", gradient: "gradient-4" },
+      { id: "watercolor", name: "수채화", gradient: "gradient-6" },
+      { id: "3d", name: "3D 렌더", gradient: "gradient-3" },
+      { id: "cyberpunk", name: "사이버펑크", gradient: "gradient-12" },
+      { id: "fantasy", name: "판타지", gradient: "gradient-5" },
+      { id: "minimal", name: "미니멀", gradient: "gradient-9" },
+      { id: "pixel", name: "픽셀 아트", gradient: "gradient-1" },
+      { id: "sketch", name: "연필 스케치", gradient: "gradient-10" },
+      { id: "vapor", name: "베이퍼웨이브", gradient: "gradient-7" },
+      { id: "concept", name: "컨셉 아트", gradient: "gradient-8" },
+    ];
+
+    const ASPECT_RATIOS = [
+      { id: "1:1", w: 18, h: 18 },
+      { id: "16:9", w: 24, h: 14 },
+      { id: "9:16", w: 14, h: 24 },
+      { id: "4:3", w: 22, h: 16 },
+      { id: "3:4", w: 16, h: 22 },
+      { id: "21:9", w: 28, h: 12 },
+    ];
+
+    const GALLERY_ITEMS = [
+      { gradient: "gradient-1", title: "우주의 꿈결", style: "판타지", ratio: "1:1" },
+      { gradient: "gradient-12", title: "밤의 네온 도시", style: "사이버펑크", ratio: "16:9" },
+      { gradient: "gradient-4", title: "산 너머 노을", style: "유화", ratio: "4:3" },
+      { gradient: "gradient-3", title: "수중 낙원", style: "3D 렌더", ratio: "1:1" },
+      { gradient: "gradient-7", title: "벚꽃 신사", style: "애니메이션", ratio: "9:16" },
+      { gradient: "gradient-6", title: "안개 낀 숲길", style: "수채화", ratio: "1:1" },
+      { gradient: "gradient-5", title: "고대 사원 유적", style: "컨셉 아트", ratio: "16:9" },
+      { gradient: "gradient-2", title: "떠다니는 섬들", style: "판타지", ratio: "4:3" },
+      { gradient: "gradient-9", title: "기하학 추상", style: "미니멀", ratio: "1:1" },
+      { gradient: "gradient-10", title: "빈티지 초상화", style: "유화", ratio: "3:4" },
+      { gradient: "gradient-8", title: "사막의 모래언덕", style: "사실적", ratio: "16:9" },
+      { gradient: "gradient-11", title: "흑백 습작", style: "연필 스케치", ratio: "1:1" },
+    ];
+
+    function PromptBar({ prompt, setPrompt, onGenerate }) {
+      return (
+        <div className="px-6 pt-4 pb-3 bg-white border-b border-neutral-200">
+          <div className="glow flex items-center gap-2 bg-white border border-neutral-200 rounded-2xl px-4 py-3 transition-all shadow-sm">
+            <div className="flex items-center gap-1 pr-3 border-r border-neutral-200">
+              <button className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900 transition-all" title="이미지 추가">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+              </button>
+              <button className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900 transition-all" title="설정">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14"></line>
+                  <line x1="4" y1="10" x2="4" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12" y2="3"></line>
+                  <line x1="20" y1="21" x2="20" y2="16"></line>
+                  <line x1="20" y1="12" x2="20" y2="3"></line>
+                  <line x1="1" y1="14" x2="7" y2="14"></line>
+                  <line x1="9" y1="8" x2="15" y2="8"></line>
+                  <line x1="17" y1="16" x2="23" y2="16"></line>
+                </svg>
+              </button>
+            </div>
+            <span className="text-violet-600 font-mono font-bold text-sm select-none">/상상하기</span>
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="황금빛 시간에 구름 사이를 비행하는 웅장한 용, 시네마틱 라이팅..."
+              className="flex-1 bg-transparent text-neutral-900 placeholder-neutral-400 text-sm focus:outline-none"
+              onKeyDown={(e) => e.key === "Enter" && onGenerate()}
+            />
+            <button
+              onClick={onGenerate}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-all shadow-sm"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              생성하기
+            </button>
+          </div>
+          <div className="flex items-center gap-2 mt-2.5 px-1 text-[11px] text-neutral-500">
+            <span>팁:</span>
+            <span>쉼표로 개념을 구분하세요. 화면비는</span>
+            <code className="bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded text-violet-700">--ar 16:9</code>
+            <span>스타일화는</span>
+            <code className="bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded text-violet-700">--s 750</code>
+            <span>를 추가하세요.</span>
+          </div>
+        </div>
+      );
+    }
+
+    function ControlPanel({
+      selectedStyle, setSelectedStyle,
+      selectedRatio, setSelectedRatio,
+      stylize, setStylize,
+      quality, setQuality,
+      chaos, setChaos,
+      version, setVersion,
+    }) {
+      return (
+        <div className="space-y-6">
+          {/* Styles */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">스타일</h3>
+              <button className="text-[11px] text-neutral-500 hover:text-violet-600">전체 보기</button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+              {STYLES.map((s) => (
+                <StyleCard
+                  key={s.id}
+                  name={s.name}
+                  gradient={s.gradient}
+                  active={selectedStyle === s.id}
+                  onClick={() => setSelectedStyle(s.id)}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Aspect Ratios */}
+          <section>
+            <h3 className="text-xs font-bold text-neutral-700 uppercase tracking-wider mb-3">화면 비율</h3>
+            <div className="grid grid-cols-6 gap-2">
+              {ASPECT_RATIOS.map((r) => (
+                <AspectRatioButton
+                  key={r.id}
+                  ratio={r.id}
+                  w={r.w}
+                  h={r.h}
+                  active={selectedRatio === r.id}
+                  onClick={() => setSelectedRatio(r.id)}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Sliders */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <Slider label="스타일화" value={stylize} onChange={setStylize} min={0} max={1000} step={50} />
+            <Slider label="품질" value={quality} onChange={setQuality} min={1} max={4} step={1} valueLabel={`${quality}x`} />
+            <Slider label="카오스" value={chaos} onChange={setChaos} min={0} max={100} step={5} />
+          </section>
+
+          {/* Model + flags */}
+          <section className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-neutral-700 uppercase tracking-wider mr-2">모델</span>
+            {["v6.1", "v6", "v5.2", "Niji 6"].map((v) => (
+              <Chip key={v} label={v} active={version === v} onClick={() => setVersion(v)} />
+            ))}
+            <div className="w-px h-5 bg-neutral-200 mx-1"></div>
+            <Chip label="원본 모드" />
+            <Chip label="타일" />
+            <Chip label="특이함" />
+          </section>
+        </div>
+      );
+    }
+
+    function GalleryItem({ item, index }) {
+      const heightClass = item.ratio === "16:9" ? "h-44"
+        : item.ratio === "9:16" ? "h-96"
+        : item.ratio === "4:3" ? "h-52"
+        : item.ratio === "3:4" ? "h-80"
+        : "h-64";
+
+      return (
+        <div className={`group relative rounded-xl overflow-hidden ${heightClass} ${item.gradient} cursor-pointer ring-1 ring-neutral-200 hover:ring-violet-400 hover:shadow-lg transition-all`}>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+          {/* Top action buttons */}
+          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button className="w-8 h-8 rounded-lg bg-white/90 backdrop-blur text-neutral-900 flex items-center justify-center hover:bg-white" title="좋아요">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            </button>
+            <button className="w-8 h-8 rounded-lg bg-white/90 backdrop-blur text-neutral-900 flex items-center justify-center hover:bg-white" title="다운로드">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
+          </div>
+
+          {/* Bottom info */}
+          <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <p className="text-white text-sm font-semibold truncate">{item.title}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 backdrop-blur text-white">{item.style}</span>
+              <span className="text-[10px] text-gray-200">{item.ratio}</span>
+            </div>
+          </div>
+
+          {/* Variation badges */}
+          <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {["U1", "U2", "V1", "V2"].map((v) => (
+              <span key={v} className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/90 backdrop-blur text-neutral-900">{v}</span>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function GallerySection() {
+      const [view, setView] = useState("grid");
+      const [filter, setFilter] = useState("all");
+
+      return (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-neutral-900">최근 생성 작품</h2>
+              <p className="text-xs text-neutral-500 mt-0.5">이번 세션에서 생성된 이미지</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-1 border border-neutral-200">
+                {[
+                  { id: "all", label: "전체" },
+                  { id: "today", label: "오늘" },
+                  { id: "week", label: "이번 주" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setFilter(f.id)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                      filter === f.id ? "bg-white text-violet-700 shadow-sm" : "text-neutral-500 hover:text-neutral-900"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-1 border border-neutral-200">
+                <button
+                  onClick={() => setView("grid")}
+                  title="그리드 보기"
+                  className={`w-7 h-7 flex items-center justify-center rounded ${view === "grid" ? "bg-white text-violet-700 shadow-sm" : "text-neutral-500 hover:text-neutral-900"}`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setView("list")}
+                  title="리스트 보기"
+                  className={`w-7 h-7 flex items-center justify-center rounded ${view === "list" ? "bg-white text-violet-700 shadow-sm" : "text-neutral-500 hover:text-neutral-900"}`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 [grid-auto-flow:dense]">
+            {GALLERY_ITEMS.map((item, i) => (
+              <GalleryItem key={i} item={item} index={i} />
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================
+    // Page Component
+    // ========================================
+    function CreatePage() {
+      const [prompt, setPrompt] = useState("황금빛 시간에 구름 사이를 비행하는 웅장한 용");
+      const [selectedStyle, setSelectedStyle] = useState("cyberpunk");
+      const [selectedRatio, setSelectedRatio] = useState("1:1");
+      const [stylize, setStylize] = useState(250);
+      const [quality, setQuality] = useState(2);
+      const [chaos, setChaos] = useState(20);
+      const [version, setVersion] = useState("v6.1");
+
+      const handleGenerate = () => {
+        // UI mockup only
+      };
+
+      return (
+        <>
+          <PromptBar prompt={prompt} setPrompt={setPrompt} onGenerate={handleGenerate} />
+          <div className="flex-1 overflow-y-auto bg-white">
+            <div className="px-6 py-6 border-b border-neutral-200 bg-white">
+              <ControlPanel
+                selectedStyle={selectedStyle} setSelectedStyle={setSelectedStyle}
+                selectedRatio={selectedRatio} setSelectedRatio={setSelectedRatio}
+                stylize={stylize} setStylize={setStylize}
+                quality={quality} setQuality={setQuality}
+                chaos={chaos} setChaos={setChaos}
+                version={version} setVersion={setVersion}
+              />
+            </div>
+            <div className="px-6 py-6 bg-neutral-50/50">
+              <GallerySection />
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    // ========================================
+    // App
+    // ========================================
+    function App() {
+      const [activeNav, setActiveNav] = useState("create");
+
+      return (
+        <div className="flex h-screen w-screen overflow-hidden bg-white">
+          <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />
+          <main className="flex-1 flex flex-col min-w-0">
+            <TopBar />
+            <CreatePage />
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

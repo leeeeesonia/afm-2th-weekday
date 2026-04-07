@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todos · PostgreSQL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #f7f6f3;
+      color: #1c1c1c;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .container { max-width: 640px; margin: 0 auto; padding: 48px 20px; }
+    header { margin-bottom: 32px; }
+    h1 { font-size: 28px; font-weight: 700; margin: 0 0 4px; }
+    .subtitle { color: #888; font-size: 14px; margin: 0; }
+    .badge {
+      display: inline-block;
+      background: #e8e3d8;
+      color: #6b5d3f;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    /* Form */
+    .form {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1fr 160px auto;
+      gap: 8px;
+    }
+    .form input, .form select {
+      padding: 11px 14px;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fafafa;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .form input:focus, .form select:focus { border-color: #888; background: #fff; }
+    .form button {
+      padding: 11px 18px;
+      background: #1c1c1c;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .form button:hover { background: #333; }
+    .form button:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* Users summary */
+    .users {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .user-chip {
+      background: #fff;
+      border: 1px solid #eee;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: #555;
+    }
+    .user-chip strong { color: #1c1c1c; }
+    .user-chip .count {
+      display: inline-block;
+      background: #1c1c1c;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-left: 6px;
+    }
+
+    /* Todo list */
+    .stats { color: #888; font-size: 13px; margin-bottom: 12px; }
+    ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    li {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: border-color .15s, transform .15s;
+    }
+    li:hover { border-color: #ddd; }
+    .check {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #d4d4d4;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
+    .check.done {
+      background: #1c1c1c;
+      border-color: #1c1c1c;
+      color: #fff;
+      font-size: 12px;
+    }
+    .body { flex: 1; min-width: 0; }
+    .title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1c1c1c;
+      word-break: break-word;
+    }
+    .title.done { color: #b8b8b8; text-decoration: line-through; }
+    .owner {
+      font-size: 12px;
+      color: #888;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .owner-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c9b87a;
+    }
+    .delete {
+      background: none;
+      border: none;
+      color: #ccc;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color .15s;
+    }
+    .delete:hover { color: #e57373; }
+
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #c5c5c5;
+      font-size: 14px;
+    }
+    .error {
+      background: #fee;
+      color: #c33;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 560px) {
+      .form { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Todos <span class="badge">PostgreSQL · Supabase</span></h1>
+      <p class="subtitle">사용자별로 누가 어떤 할 일을 가지고 있는지 보여줍니다.</p>
+    </header>
+
+    <div id="error" class="error" style="display:none"></div>
+
+    <div class="users" id="users"></div>
+
+    <form class="form" id="todoForm">
+      <input id="titleInput" type="text" placeholder="새 할 일을 입력하세요..." autocomplete="off" required />
+      <select id="userSelect" required></select>
+      <button type="submit" id="addBtn">추가</button>
+    </form>
+
+    <div class="stats" id="stats"></div>
+    <ul id="todoList"></ul>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const errorBox = $('error');
+
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.style.display = 'block';
+      setTimeout(() => { errorBox.style.display = 'none'; }, 4000);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || `HTTP ${res.status}`);
+      }
+      return json.data;
+    }
+
+    let users = [];
+    let todos = [];
+
+    async function loadUsers() {
+      users = await api('/api/users');
+      // Render user chips
+      $('users').innerHTML = users.map(u => `
+        <div class="user-chip">
+          <strong>${escapeHtml(u.name)}</strong>
+          <span class="count">${u.todo_count}</span>
+        </div>
+      `).join('');
+      // Render user select options
+      $('userSelect').innerHTML = users.map(u =>
+        `<option value="${u.id}">${escapeHtml(u.name)}</option>`
+      ).join('');
+    }
+
+    async function loadTodos() {
+      todos = await api('/api/todos');
+      renderTodos();
+    }
+
+    function renderTodos() {
+      const list = $('todoList');
+      const doneCount = todos.filter(t => t.completed).length;
+      $('stats').textContent = todos.length
+        ? `${doneCount} / ${todos.length} 완료`
+        : '';
+
+      if (todos.length === 0) {
+        list.innerHTML = '<div class="empty">아직 할 일이 없습니다. 위에서 추가해보세요.</div>';
+        return;
+      }
+
+      list.innerHTML = todos.map(t => `
+        <li data-id="${t.id}">
+          <div class="check ${t.completed ? 'done' : ''}" data-action="toggle">
+            ${t.completed ? '&#10003;' : ''}
+          </div>
+          <div class="body">
+            <div class="title ${t.completed ? 'done' : ''}">${escapeHtml(t.title)}</div>
+            <div class="owner">
+              <span class="owner-dot"></span>
+              ${escapeHtml(t.user_name || '(소유자 없음)')}
+              ${t.user_email ? `· <span>${escapeHtml(t.user_email)}</span>` : ''}
+            </div>
+          </div>
+          <button class="delete" data-action="delete" aria-label="삭제">&times;</button>
+        </li>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    // Add todo
+    $('todoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = $('titleInput').value.trim();
+      const user_id = Number($('userSelect').value);
+      if (!title || !user_id) return;
+      try {
+        await api('/api/todos', {
+          method: 'POST',
+          body: JSON.stringify({ title, user_id }),
+        });
+        $('titleInput').value = '';
+        await Promise.all([loadTodos(), loadUsers()]);
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    // Toggle / delete via event delegation
+    $('todoList').addEventListener('click', async (e) => {
+      const li = e.target.closest('li');
+      if (!li) return;
+      const id = li.dataset.id;
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+
+      try {
+        if (action === 'toggle') {
+          const current = todos.find(t => String(t.id) === String(id));
+          await api(`/api/todos/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ completed: !current.completed }),
+          });
+        } else if (action === 'delete') {
+          await api(`/api/todos/${id}`, { method: 'DELETE' });
+        }
+        await Promise.all([loadTodos(), loadUsers()]);
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    // Boot
+    (async () => {
+      try {
+        await loadUsers();
+        await loadTodos();
+      } catch (err) {
+        showError('초기 로딩 실패: ' + err.message);
+      }
+    })();
+  </script>
+</body>
+</html>

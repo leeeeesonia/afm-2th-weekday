@@ -1,0 +1,16 @@
+{
+  "name": "my-midjourney",
+  "version": "1.0.0",
+  "description": "AI image generation app powered by fal.ai flux/schnell",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.0.0"
+  }
+}
