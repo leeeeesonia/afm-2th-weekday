@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포켓몬 도감 검색</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Noto Sans KR', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+      animation: fadeInUp 0.4s ease-out forwards;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-float {
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .shimmer {
+      background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.3) 50%, transparent 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks Destructuring
+    // ========================================
+    const { useState, useEffect, useCallback } = React;
+
+    const API_BASE = 'http://localhost:3030';
+
+    const TYPE_COLORS = {
+      '풀':   { bg: 'bg-green-500',  text: 'text-white',  bar: 'bg-green-500',  light: 'bg-green-50',  border: 'border-green-200', gradient: 'from-green-400 to-emerald-500' },
+      '독':   { bg: 'bg-purple-500', text: 'text-white',  bar: 'bg-purple-500', light: 'bg-purple-50', border: 'border-purple-200', gradient: 'from-purple-400 to-violet-500' },
+      '불꽃': { bg: 'bg-orange-500', text: 'text-white',  bar: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-200', gradient: 'from-orange-400 to-red-500' },
+      '물':   { bg: 'bg-blue-500',   text: 'text-white',  bar: 'bg-blue-500',   light: 'bg-blue-50',   border: 'border-blue-200', gradient: 'from-blue-400 to-cyan-500' },
+      '전기': { bg: 'bg-yellow-400', text: 'text-gray-800', bar: 'bg-yellow-400', light: 'bg-yellow-50', border: 'border-yellow-200', gradient: 'from-yellow-300 to-amber-400' },
+      '노말': { bg: 'bg-gray-400',   text: 'text-white',  bar: 'bg-gray-400',   light: 'bg-gray-50',   border: 'border-gray-200', gradient: 'from-gray-400 to-slate-500' },
+    };
+
+    const STAT_COLORS = {
+      HP: 'bg-red-400',
+      공격: 'bg-orange-400',
+      방어: 'bg-yellow-400',
+      특수공격: 'bg-blue-400',
+      특수방어: 'bg-green-400',
+      스피드: 'bg-pink-400',
+    };
+
+    const MAX_STAT = 100;
+
+    // ========================================
+    // Design System Components
+    // ========================================
+    function TypeBadge({ type }) {
+      const colors = TYPE_COLORS[type] || TYPE_COLORS['노말'];
+      return (
+        <span className={`${colors.bg} ${colors.text} px-3 py-1 rounded-full text-sm font-medium inline-block`}>
+          {type}
+        </span>
+      );
+    }
+
+    function StatBar({ label, value }) {
+      const percentage = Math.min((value / MAX_STAT) * 100, 100);
+      const barColor = STAT_COLORS[label] || 'bg-gray-400';
+      return (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="w-16 text-right text-gray-500 font-medium shrink-0">{label}</span>
+          <span className="w-8 text-right font-bold text-gray-700 shrink-0">{value}</span>
+          <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
+            <div
+              className={`${barColor} h-full rounded-full transition-all duration-700 ease-out`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Pokemon Card Component
+    // ========================================
+    function PokemonCard({ pokemon, index }) {
+      const primaryType = pokemon.types[0];
+      const colors = TYPE_COLORS[primaryType] || TYPE_COLORS['노말'];
+      const totalStats = Object.values(pokemon.stats).reduce((a, b) => a + b, 0);
+
+      return (
+        <div
+          className="animate-fade-in-up"
+          style={{ animationDelay: `${index * 0.1}s` }}
+        >
+          <div className={`bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border ${colors.border} hover:-translate-y-1`}>
+            {/* Card Header with gradient background */}
+            <div className={`bg-gradient-to-br ${colors.gradient} p-6 pb-16 relative overflow-hidden`}>
+              {/* Decorative circles */}
+              <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full" />
+              <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/10 rounded-full" />
+
+              <div className="flex justify-between items-start relative z-10">
+                <div>
+                  <span className="text-white/70 font-bold text-lg">#{String(pokemon.id).padStart(3, '0')}</span>
+                  <h2 className="text-white text-2xl font-black mt-1">{pokemon.nameKr}</h2>
+                  <p className="text-white/80 text-sm font-medium">{pokemon.nameEn}</p>
+                </div>
+                <div className="flex gap-1.5 flex-wrap justify-end">
+                  {pokemon.types.map((type) => (
+                    <span key={type} className="bg-white/25 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold">
+                      {type}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Pokemon Image - overlapping the header */}
+            <div className="flex justify-center -mt-14 relative z-10">
+              <div className="w-36 h-36 bg-white rounded-full shadow-md flex items-center justify-center p-2 border-4 border-white">
+                <img
+                  src={pokemon.image}
+                  alt={pokemon.nameKr}
+                  className="w-28 h-28 object-contain animate-float drop-shadow-md"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+
+            {/* Card Body */}
+            <div className="p-5 pt-3">
+              {/* Type Badges */}
+              <div className="flex justify-center gap-2 mb-4">
+                {pokemon.types.map((type) => (
+                  <TypeBadge key={type} type={type} />
+                ))}
+              </div>
+
+              {/* Description */}
+              <p className="text-gray-600 text-sm text-center mb-5 leading-relaxed min-h-[40px]">
+                {pokemon.description}
+              </p>
+
+              {/* Stats */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                  능력치 <span className="text-gray-300 ml-1">합계 {totalStats}</span>
+                </h3>
+                {Object.entries(pokemon.stats).map(([label, value]) => (
+                  <StatBar key={label} label={label} value={value} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Search Input Component
+    // ========================================
+    function SearchInput({ value, onChange }) {
+      return (
+        <div className="relative max-w-lg mx-auto">
+          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="포켓몬 이름 또는 번호로 검색 (예: 피카츄, Pikachu, 25)"
+            className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-200 focus:border-red-400 focus:ring-4 focus:ring-red-100 outline-none text-gray-700 text-base transition-all duration-200 bg-white shadow-sm placeholder:text-gray-400"
+            aria-label="포켓몬 검색"
+          />
+          {value && (
+            <button
+              onClick={() => onChange('')}
+              className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="검색어 지우기"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // Empty State Component
+    // ========================================
+    function EmptyState({ query }) {
+      return (
+        <div className="text-center py-16 animate-fade-in-up">
+          <div className="text-6xl mb-4">&#x1F50D;</div>
+          <h3 className="text-xl font-bold text-gray-700 mb-2">
+            "{query}"에 해당하는 포켓몬을 찾을 수 없어요
+          </h3>
+          <p className="text-gray-500">
+            포켓몬 이름(한글/영문) 또는 번호로 다시 검색해 보세요.
+          </p>
+          <div className="mt-4 text-sm text-gray-400">
+            검색 가능: 이상해씨, 파이리, 꼬부기, 피카츄, 이브이
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // App Component
+    // ========================================
+    function App() {
+      const [query, setQuery] = useState('');
+      const [pokemonList, setPokemonList] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      const fetchPokemon = useCallback(async (searchQuery) => {
+        setLoading(true);
+        try {
+          const url = searchQuery.trim()
+            ? `${API_BASE}/api/pokemon?q=${encodeURIComponent(searchQuery.trim())}`
+            : `${API_BASE}/api/pokemon`;
+          const res = await fetch(url);
+          const data = await res.json();
+          setPokemonList(data);
+        } catch (err) {
+          console.error('API 호출 실패:', err);
+          setPokemonList([]);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        fetchPokemon(query);
+      }, [query, fetchPokemon]);
+
+      const filteredPokemon = pokemonList;
+
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-red-50 via-white to-blue-50">
+          {/* Header */}
+          <header className="bg-gradient-to-r from-red-500 to-red-600 shadow-lg">
+            <div className="max-w-6xl mx-auto px-4 py-6 text-center">
+              <div className="flex items-center justify-center gap-3 mb-1">
+                <div className="w-10 h-10 bg-white rounded-full border-4 border-red-300 shadow-inner flex items-center justify-center">
+                  <div className="w-4 h-4 bg-red-400 rounded-full" />
+                </div>
+                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                  포켓몬 도감
+                </h1>
+              </div>
+              <p className="text-red-100 text-sm mt-1">포켓몬을 검색하고 능력치를 확인하세요</p>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="max-w-6xl mx-auto px-4 py-8">
+            {/* Search */}
+            <div className="mb-8">
+              <SearchInput value={query} onChange={setQuery} />
+              <p className="text-center text-sm text-gray-400 mt-3">
+                {filteredPokemon.length}마리의 포켓몬이 검색되었습니다
+              </p>
+            </div>
+
+            {/* Results */}
+            {filteredPokemon.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPokemon.map((pokemon, index) => (
+                  <PokemonCard key={pokemon.id} pokemon={pokemon} index={index} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState query={query} />
+            )}
+          </main>
+
+          {/* Footer */}
+          <footer className="text-center py-6 text-gray-400 text-sm">
+            <p>포켓몬 도감 검색 앱</p>
+          </footer>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
