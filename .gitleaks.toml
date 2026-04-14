@@ -1,0 +1,39 @@
+title = "Repo gitleaks config"
+
+# gitleaks 기본 규칙 상속 + 커스텀 규칙 추가
+[extend]
+useDefault = true
+
+# -----------------------------------------------------------------------------
+# Database connection URIs with inline credentials
+#   예: postgresql://user:password@host:5432/db
+#       mysql://root:pass@localhost/app
+#       mongodb+srv://admin:secret@cluster.mongodb.net/db
+# -----------------------------------------------------------------------------
+[[rules]]
+id = "database-connection-uri"
+description = "Database connection URI with inline credentials"
+regex = '''(?i)\b(postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|rediss|amqp|amqps)://[^\s:/@"']+:[^\s:/@"']+@[^\s/"']+'''
+tags = ["database", "credentials"]
+
+# Supabase 특정 도메인이 포함된 경우 별도 규칙 (가시성 ↑)
+[[rules]]
+id = "supabase-connection-uri"
+description = "Supabase connection URI with credentials"
+regex = '''(?i)postgres(?:ql)?://[^\s:/@"']+:[^\s:/@"']+@[^\s/"']*\.(?:supabase\.(?:co|com)|pooler\.supabase\.com)'''
+tags = ["supabase", "database", "credentials"]
+
+# -----------------------------------------------------------------------------
+# 오탐 방지 (allowlist)
+#   .env.example, README 샘플, 테스트 더미 등에 들어가는 placeholder는 제외
+# -----------------------------------------------------------------------------
+[allowlist]
+description = "Ignore placeholder values in examples and docs"
+paths = [
+  '''\.env\.example$''',
+  '''(?i)readme\.md$''',
+]
+regexes = [
+  '''postgres(?:ql)?://(user|username|USER|YOUR_USER):<?(password|PASSWORD|YOUR_PASSWORD)>?@''',
+  '''postgres(?:ql)?://[^\s:/@]+:(\*+|x+|X+|\.\.\.)@''',
+]
