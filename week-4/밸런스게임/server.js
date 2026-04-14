@@ -6,8 +6,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Database Connection ---
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable is required');
+}
+
 const pool = new Pool({
-  connectionString: (process.env.DATABASE_URL || 'postgresql://postgres.kxdznuohbawswtgqzrqp:***REMOVED***@aws-1-us-east-1.pooler.supabase.com:6543/postgres').trim(),
+  connectionString: process.env.DATABASE_URL.trim(),
   ssl: { rejectUnauthorized: false },
 });
 
