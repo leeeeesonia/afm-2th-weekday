@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>홈 레시피 - 냉장고를 부탁해</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: translateY(0);} }
+  </style>
+</head>
+<body class="bg-amber-50 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback, useContext, createContext, useRef } = React;
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function Button({ variant = 'primary', size = 'md', disabled, onClick, children, className = '', type = 'button' }) {
+      const base = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-orange-500 hover:bg-orange-600 text-white focus:ring-orange-300 shadow-sm',
+        secondary: 'bg-amber-100 hover:bg-amber-200 text-amber-900 focus:ring-amber-300',
+        danger: 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-300',
+        ghost: 'bg-transparent hover:bg-amber-100 text-amber-900',
+        success: 'bg-green-500 hover:bg-green-600 text-white focus:ring-green-300',
+      };
+      const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2 text-base', lg: 'px-6 py-3 text-lg' };
+      return (
+        <button type={type} disabled={disabled} onClick={onClick}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}>
+          {children}
+        </button>
+      );
+    }
+
+    function Input({ type = 'text', label, value, onChange, placeholder, error, disabled, className = '' }) {
+      return (
+        <div className={`w-full ${className}`}>
+          {label && <label className="block text-sm font-medium text-amber-900 mb-1">{label}</label>}
+          <input type={type} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled}
+            className={`w-full px-3 py-2 rounded-lg border bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 ${error ? 'border-red-400' : 'border-amber-200'}`} />
+          {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+        </div>
+      );
+    }
+
+    function Textarea({ label, value, onChange, placeholder, rows = 4, className = '' }) {
+      return (
+        <div className={`w-full ${className}`}>
+          {label && <label className="block text-sm font-medium text-amber-900 mb-1">{label}</label>}
+          <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+            className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 resize-y" />
+        </div>
+      );
+    }
+
+    function Card({ children, className = '', onClick }) {
+      return (
+        <div onClick={onClick}
+          className={`bg-white rounded-2xl shadow-sm border border-amber-100 p-5 ${onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all' : ''} ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Badge({ children, variant = 'default', className = '' }) {
+      const variants = {
+        default: 'bg-amber-100 text-amber-800',
+        success: 'bg-green-100 text-green-800 border border-green-300',
+        warning: 'bg-yellow-100 text-yellow-800',
+        danger: 'bg-red-100 text-red-700',
+        info: 'bg-orange-100 text-orange-800',
+      };
+      return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${variants[variant]} ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+      useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e) => e.key === 'Escape' && onClose();
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [isOpen, onClose]);
+      if (!isOpen) return null;
+      const sizes = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl' };
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 fade-in" onClick={onClose}>
+          <div className={`bg-white rounded-2xl shadow-xl w-full ${sizes[size]} max-h-[90vh] overflow-hidden flex flex-col`} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-amber-100">
+              <h3 className="text-lg font-bold text-amber-900">{title}</h3>
+              <button onClick={onClose} className="text-amber-700 hover:text-amber-900 text-2xl leading-none">×</button>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto">{children}</div>
+          </div>
+        </div>
+      );
+    }
+
+    function EmptyState({ icon = '🍳', title, description, action }) {
+      return (
+        <div className="text-center py-16">
+          <div className="text-6xl mb-3">{icon}</div>
+          <h4 className="text-lg font-semibold text-amber-900 mb-1">{title}</h4>
+          {description && <p className="text-amber-700 text-sm mb-4">{description}</p>}
+          {action}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔀 Hash Router
+    // ========================================
+    const RouterContext = createContext({ path: '/', navigate: () => {} });
+
+    function Router({ children }) {
+      const [path, setPath] = useState(window.location.hash.replace('#', '') || '/');
+      useEffect(() => {
+        const onHashChange = () => setPath(window.location.hash.replace('#', '') || '/');
+        window.addEventListener('hashchange', onHashChange);
+        return () => window.removeEventListener('hashchange', onHashChange);
+      }, []);
+      const navigate = useCallback((to) => { window.location.hash = to; }, []);
+      return <RouterContext.Provider value={{ path, navigate }}>{children}</RouterContext.Provider>;
+    }
+
+    function useRouter() { return useContext(RouterContext); }
+
+    function Link({ to, children, className = '', activeClassName = '' }) {
+      const { path, navigate } = useRouter();
+      const isActive = path === to;
+      return (
+        <a href={`#${to}`} onClick={(e) => { e.preventDefault(); navigate(to); }}
+          className={`${className} ${isActive ? activeClassName : ''}`}>
+          {children}
+        </a>
+      );
+    }
+
+    // ========================================
+    // 🌐 API Client + Data Context
+    // ========================================
+    const API_BASE_URL = '/api';
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(`${API_BASE_URL}${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      if (!res.ok) {
+        const msg = (data && data.error) || `요청 실패 (${res.status})`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    // Normalize server shapes -> client shapes (so existing UI keeps working)
+    function normalizeFridgeItem(row) {
+      return {
+        id: row.id,
+        name: row.name,
+        qty: row.amount == null ? '' : String(row.amount),
+        unit: row.unit || '',
+        expiry: row.expiry_date || '',
+      };
+    }
+    function normalizeRecipe(row) {
+      return {
+        id: row.id,
+        title: row.name,
+        description: row.description || '',
+        ingredients: (row.ingredients || []).map((ing) => ({
+          name: ing.name,
+          qty: ing.amount == null ? '' : `${ing.amount}${ing.unit || ''}`,
+        })),
+        steps: row.steps || [],
+        createdAt: row.created_at || new Date().toISOString(),
+      };
+    }
+
+    const DataContext = createContext(null);
+    function useData() { return useContext(DataContext); }
+
+    function DataProvider({ children }) {
+      const [ingredients, setIngredients] = useState([]);
+      const [recipes, setRecipes] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState('');
+
+      const showError = useCallback((msg) => {
+        setError(msg);
+        setTimeout(() => setError(''), 4000);
+      }, []);
+
+      const loadIngredients = useCallback(async () => {
+        const rows = await apiFetch('/fridge');
+        setIngredients(rows.map(normalizeFridgeItem));
+      }, []);
+
+      const loadRecipes = useCallback(async () => {
+        const rows = await apiFetch('/recipes');
+        setRecipes(rows.map(normalizeRecipe));
+      }, []);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            await Promise.all([loadIngredients(), loadRecipes()]);
+          } catch (e) {
+            showError(`데이터를 불러오지 못했어요: ${e.message}`);
+          } finally {
+            setLoading(false);
+          }
+        })();
+      }, [loadIngredients, loadRecipes, showError]);
+
+      const addIngredient = useCallback(async (ing) => {
+        try {
+          const row = await apiFetch('/fridge', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: ing.name,
+              amount: ing.qty ? Number(ing.qty) : null,
+              unit: ing.unit || null,
+              expiry_date: ing.expiry || null,
+            }),
+          });
+          setIngredients((prev) => [normalizeFridgeItem(row), ...prev]);
+        } catch (e) {
+          showError(`재료 추가 실패: ${e.message}`);
+        }
+      }, [showError]);
+
+      const removeIngredient = useCallback(async (id) => {
+        try {
+          await apiFetch(`/fridge/${id}`, { method: 'DELETE' });
+          setIngredients((prev) => prev.filter((i) => i.id !== id));
+        } catch (e) {
+          showError(`재료 삭제 실패: ${e.message}`);
+        }
+      }, [showError]);
+
+      const addRecipe = useCallback(async (r) => {
+        try {
+          const payload = {
+            name: r.title,
+            description: r.description || null,
+            ingredients: r.ingredients.map((it) => ({
+              name: it.name,
+              // qty 문자열을 그대로 unit으로 옮기지 않고 amount는 비워둔다 (간단 입력 폼)
+              amount: null,
+              unit: it.qty || null,
+            })),
+            steps: r.steps,
+          };
+          const created = await apiFetch('/recipes', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          setRecipes((prev) => [normalizeRecipe(created), ...prev]);
+        } catch (e) {
+          showError(`레시피 저장 실패: ${e.message}`);
+          throw e;
+        }
+      }, [showError]);
+
+      const removeRecipe = useCallback(async (id) => {
+        try {
+          await apiFetch(`/recipes/${id}`, { method: 'DELETE' });
+          setRecipes((prev) => prev.filter((r) => r.id !== id));
+        } catch (e) {
+          showError(`레시피 삭제 실패: ${e.message}`);
+        }
+      }, [showError]);
+
+      const ingredientNames = useMemo(() => new Set(ingredients.map((i) => i.name.trim().toLowerCase())), [ingredients]);
+      const canCook = useCallback((recipe) => recipe.ingredients.length > 0 && recipe.ingredients.every((ing) => ingredientNames.has(ing.name.trim().toLowerCase())), [ingredientNames]);
+
+      return (
+        <DataContext.Provider value={{ ingredients, addIngredient, removeIngredient, recipes, addRecipe, removeRecipe, canCook, loading, error }}>
+          {children}
+        </DataContext.Provider>
+      );
+    }
+
+    function GlobalStatusBar() {
+      const { loading, error } = useData();
+      if (!loading && !error) return null;
+      return (
+        <div className="max-w-5xl mx-auto px-4 pt-3">
+          {loading && (
+            <div className="bg-amber-100 border border-amber-200 text-amber-900 text-sm rounded-lg px-3 py-2 mb-2">
+              ⏳ 불러오는 중...
+            </div>
+          )}
+          {error && (
+            <div className="bg-red-100 border border-red-300 text-red-800 text-sm rounded-lg px-3 py-2 mb-2">
+              ⚠️ {error}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🧩 Layout — Header & Nav
+    // ========================================
+    function Header() {
+      return (
+        <header className="bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500 text-white shadow-md sticky top-0 z-30">
+          <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="text-3xl">🍳</span>
+              <div>
+                <h1 className="text-xl font-bold leading-tight">홈 레시피</h1>
+                <p className="text-xs text-amber-50 opacity-90">냉장고를 부탁해</p>
+              </div>
+            </Link>
+            <nav className="hidden sm:flex gap-1">
+              <NavLink to="/">✨ 추천</NavLink>
+              <NavLink to="/ingredients">🥕 재료</NavLink>
+              <NavLink to="/recipes">📖 레시피</NavLink>
+              <NavLink to="/new">✏️ 작성</NavLink>
+              <NavLink to="/ai">🤖 AI</NavLink>
+            </nav>
+          </div>
+          <nav className="flex sm:hidden border-t border-orange-300/40">
+            <NavLink to="/" mobile>✨ 추천</NavLink>
+            <NavLink to="/ingredients" mobile>🥕 재료</NavLink>
+            <NavLink to="/recipes" mobile>📖 레시피</NavLink>
+            <NavLink to="/new" mobile>✏️ 작성</NavLink>
+            <NavLink to="/ai" mobile>🤖 AI</NavLink>
+          </nav>
+        </header>
+      );
+    }
+
+    function NavLink({ to, children, mobile }) {
+      const { path } = useRouter();
+      const isActive = path === to;
+      const base = mobile
+        ? `flex-1 text-center py-2.5 text-sm font-medium ${isActive ? 'bg-white/20 text-white' : 'text-amber-50/90'}`
+        : `px-4 py-2 rounded-lg text-sm font-semibold transition ${isActive ? 'bg-white text-orange-600 shadow' : 'hover:bg-white/15 text-white'}`;
+      return <Link to={to} className={base}>{children}</Link>;
+    }
+
+    // ========================================
+    // 📄 Page — Ingredients (재료 관리)
+    // ========================================
+    function IngredientsPage() {
+      const { ingredients, addIngredient, removeIngredient } = useData();
+      const [name, setName] = useState('');
+      const [qty, setQty] = useState('');
+      const [unit, setUnit] = useState('개');
+      const [expiry, setExpiry] = useState('');
+      const [error, setError] = useState('');
+
+      const handleAdd = (e) => {
+        e.preventDefault();
+        if (!name.trim()) { setError('재료명을 입력해주세요'); return; }
+        addIngredient({ name: name.trim(), qty: qty.trim(), unit, expiry });
+        setName(''); setQty(''); setExpiry(''); setError('');
+      };
+
+      const today = new Date(); today.setHours(0,0,0,0);
+      const expiryStatus = (expiry) => {
+        if (!expiry) return null;
+        const d = new Date(expiry);
+        const days = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+        if (days < 0) return { label: '유통기한 지남', variant: 'danger' };
+        if (days <= 3) return { label: `D-${days}`, variant: 'warning' };
+        return { label: `D-${days}`, variant: 'default' };
+      };
+
+      return (
+        <div className="space-y-6 fade-in">
+          <Card>
+            <h2 className="text-lg font-bold text-amber-900 mb-4 flex items-center gap-2">
+              <span>🛒</span> 재료 추가하기
+            </h2>
+            <form onSubmit={handleAdd} className="space-y-3">
+              <Input label="재료명 *" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 양파, 계란, 우유" error={error} />
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="수량" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="2" />
+                <div>
+                  <label className="block text-sm font-medium text-amber-900 mb-1">단위</label>
+                  <select value={unit} onChange={(e) => setUnit(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-300">
+                    <option>개</option><option>g</option><option>kg</option><option>ml</option><option>L</option><option>봉</option><option>팩</option><option>모</option>
+                  </select>
+                </div>
+                <Input type="date" label="유통기한" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+              </div>
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">+ 냉장고에 넣기</Button>
+            </form>
+          </Card>
+
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2">
+                <span>🧊</span> 내 냉장고
+              </h2>
+              <Badge variant="info">{ingredients.length}개</Badge>
+            </div>
+            {ingredients.length === 0 ? (
+              <EmptyState icon="🥬" title="냉장고가 비어있어요" description="위에서 재료를 추가해보세요!" />
+            ) : (
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {ingredients.map((i) => {
+                  const status = expiryStatus(i.expiry);
+                  return (
+                    <li key={i.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-4 py-3 border border-amber-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-amber-900 truncate">{i.name}</span>
+                          {i.qty && <span className="text-sm text-amber-700">{i.qty}{i.unit}</span>}
+                          {status && <Badge variant={status.variant}>{status.label}</Badge>}
+                        </div>
+                        {i.expiry && <p className="text-xs text-amber-600 mt-0.5">유통기한: {i.expiry}</p>}
+                      </div>
+                      <button onClick={() => removeIngredient(i.id)} className="text-red-400 hover:text-red-600 ml-2 text-lg" aria-label="삭제">🗑️</button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page — New Recipe (레시피 작성)
+    // ========================================
+    function NewRecipePage() {
+      const { addRecipe } = useData();
+      const { navigate } = useRouter();
+      const [title, setTitle] = useState('');
+      const [desc, setDesc] = useState('');
+      const [ingName, setIngName] = useState('');
+      const [ingQty, setIngQty] = useState('');
+      const [items, setItems] = useState([]);
+      const [steps, setSteps] = useState(['']);
+      const [error, setError] = useState('');
+
+      const addItem = () => {
+        if (!ingName.trim()) return;
+        setItems([...items, { name: ingName.trim(), qty: ingQty.trim() }]);
+        setIngName(''); setIngQty('');
+      };
+      const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
+      const updateStep = (idx, val) => setSteps(steps.map((s, i) => (i === idx ? val : s)));
+      const addStep = () => setSteps([...steps, '']);
+      const removeStep = (idx) => setSteps(steps.length > 1 ? steps.filter((_, i) => i !== idx) : steps);
+
+      const [saving, setSaving] = useState(false);
+      const handleSave = async (e) => {
+        e.preventDefault();
+        if (!title.trim()) { setError('요리명을 입력해주세요'); return; }
+        if (items.length === 0) { setError('재료를 1개 이상 추가해주세요'); return; }
+        const cleanSteps = steps.map((s) => s.trim()).filter(Boolean);
+        if (cleanSteps.length === 0) { setError('조리법을 1단계 이상 입력해주세요'); return; }
+        setSaving(true);
+        try {
+          await addRecipe({ title: title.trim(), description: desc.trim(), ingredients: items, steps: cleanSteps });
+          navigate('/recipes');
+        } catch (err) {
+          setError(err.message || '저장에 실패했어요');
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <div className="fade-in">
+          <Card>
+            <h2 className="text-lg font-bold text-amber-900 mb-4 flex items-center gap-2">
+              <span>✏️</span> 새 레시피 작성
+            </h2>
+            <form onSubmit={handleSave} className="space-y-5">
+              <Input label="요리명 *" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 김치볶음밥" />
+              <Textarea label="간단한 소개" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="이 요리에 대한 간단한 설명..." rows={2} />
+
+              <div>
+                <label className="block text-sm font-medium text-amber-900 mb-2">재료 *</label>
+                <div className="flex gap-2 mb-2">
+                  <input value={ingName} onChange={(e) => setIngName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }}
+                    placeholder="재료명"
+                    className="flex-1 px-3 py-2 rounded-lg border border-amber-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300" />
+                  <input value={ingQty} onChange={(e) => setIngQty(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }}
+                    placeholder="수량 (선택)"
+                    className="w-32 px-3 py-2 rounded-lg border border-amber-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300" />
+                  <Button type="button" variant="secondary" onClick={addItem}>추가</Button>
+                </div>
+                {items.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-amber-50 rounded-lg">
+                    {items.map((it, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 bg-white border border-amber-200 rounded-full px-3 py-1 text-sm">
+                        <span className="text-amber-900">{it.name}</span>
+                        {it.qty && <span className="text-amber-600 text-xs">{it.qty}</span>}
+                        <button type="button" onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-600 ml-0.5">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-amber-900 mb-2">조리법 (단계별) *</label>
+                <div className="space-y-2">
+                  {steps.map((s, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-orange-500 text-white text-sm font-bold flex items-center justify-center mt-1">{idx + 1}</span>
+                      <textarea value={s} onChange={(e) => updateStep(idx, e.target.value)} rows={2}
+                        placeholder={`${idx + 1}단계 설명`}
+                        className="flex-1 px-3 py-2 rounded-lg border border-amber-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 resize-y" />
+                      {steps.length > 1 && (
+                        <button type="button" onClick={() => removeStep(idx)} className="text-red-400 hover:text-red-600 mt-2">🗑️</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={addStep} className="mt-2">+ 단계 추가</Button>
+              </div>
+
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" variant="primary" disabled={saving}>{saving ? '저장 중...' : '💾 레시피 저장'}</Button>
+                <Button type="button" variant="ghost" onClick={() => navigate('/recipes')}>취소</Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page — Recipes (레시피 목록)
+    // ========================================
+    function RecipesPage() {
+      const { recipes, removeRecipe, canCook, ingredients } = useData();
+      const { navigate } = useRouter();
+      const [selected, setSelected] = useState(null);
+      const [filter, setFilter] = useState('all'); // all | cookable
+
+      const filtered = useMemo(() => {
+        if (filter === 'cookable') return recipes.filter(canCook);
+        return recipes;
+      }, [recipes, filter, canCook]);
+
+      const cookableCount = useMemo(() => recipes.filter(canCook).length, [recipes, canCook]);
+
+      return (
+        <div className="space-y-4 fade-in">
+          <Card className="!p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📖</span>
+                <div>
+                  <h2 className="text-lg font-bold text-amber-900">내 레시피</h2>
+                  <p className="text-xs text-amber-700">총 {recipes.length}개 · 지금 만들 수 있는 요리 {cookableCount}개</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant={filter === 'all' ? 'primary' : 'secondary'} onClick={() => setFilter('all')}>전체</Button>
+                <Button size="sm" variant={filter === 'cookable' ? 'success' : 'secondary'} onClick={() => setFilter('cookable')}>✨ 만들 수 있어요</Button>
+              </div>
+            </div>
+          </Card>
+
+          {recipes.length === 0 ? (
+            <Card>
+              <EmptyState icon="📓" title="아직 저장된 레시피가 없어요"
+                description="첫 레시피를 작성해보세요!"
+                action={<Button variant="primary" onClick={() => navigate('/new')}>레시피 작성하기</Button>} />
+            </Card>
+          ) : filtered.length === 0 ? (
+            <Card>
+              <EmptyState icon="🥲" title="만들 수 있는 요리가 없어요"
+                description="냉장고에 재료를 추가해보세요!"
+                action={<Button variant="secondary" onClick={() => navigate('/ingredients')}>재료 추가하러 가기</Button>} />
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.map((r) => {
+                const cookable = canCook(r);
+                const haveCount = r.ingredients.filter((ing) => ingredients.some((i) => i.name.trim().toLowerCase() === ing.name.trim().toLowerCase())).length;
+                return (
+                  <Card key={r.id} onClick={() => setSelected(r)} className="relative flex flex-col">
+                    {cookable && (
+                      <div className="absolute -top-2 -right-2">
+                        <Badge variant="success" className="shadow">✨ 만들 수 있어요!</Badge>
+                      </div>
+                    )}
+                    <div className="text-3xl mb-2">🍽️</div>
+                    <h3 className="font-bold text-amber-900 text-base mb-1 truncate">{r.title}</h3>
+                    {r.description && <p className="text-sm text-amber-700 mb-3 line-clamp-2">{r.description}</p>}
+                    <div className="mt-auto pt-3 border-t border-amber-100 flex items-center justify-between">
+                      <span className="text-xs text-amber-600">재료 {haveCount}/{r.ingredients.length}</span>
+                      <span className="text-xs text-amber-600">{r.steps.length}단계</span>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          <Modal isOpen={!!selected} onClose={() => setSelected(null)} title={selected?.title || ''} size="lg">
+            {selected && (
+              <div className="space-y-5">
+                {selected.description && <p className="text-amber-800">{selected.description}</p>}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {canCook(selected)
+                    ? <Badge variant="success">✨ 지금 만들 수 있어요!</Badge>
+                    : <Badge variant="warning">일부 재료가 부족해요</Badge>}
+                  <Badge variant="default">{new Date(selected.createdAt).toLocaleDateString('ko-KR')}</Badge>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-amber-900 mb-2 flex items-center gap-1.5">🥕 재료</h4>
+                  <ul className="grid grid-cols-2 gap-2">
+                    {selected.ingredients.map((ing, idx) => {
+                      const have = ingredients.some((i) => i.name.trim().toLowerCase() === ing.name.trim().toLowerCase());
+                      return (
+                        <li key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${have ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-100'}`}>
+                          <span className="text-amber-900">
+                            <span className="mr-1">{have ? '✅' : '🔸'}</span>{ing.name}
+                          </span>
+                          {ing.qty && <span className="text-xs text-amber-600">{ing.qty}</span>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-amber-900 mb-2 flex items-center gap-1.5">👩‍🍳 조리법</h4>
+                  <ol className="space-y-3">
+                    {selected.steps.map((s, idx) => (
+                      <li key={idx} className="flex gap-3">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-orange-500 text-white text-sm font-bold flex items-center justify-center">{idx + 1}</span>
+                        <p className="text-amber-900 leading-relaxed whitespace-pre-wrap pt-0.5">{s}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-amber-100">
+                  <Button variant="danger" size="sm" onClick={() => {
+                    if (confirm('정말 이 레시피를 삭제할까요?')) { removeRecipe(selected.id); setSelected(null); }
+                  }}>🗑️ 삭제</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>닫기</Button>
+                </div>
+              </div>
+            )}
+          </Modal>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page — Recommend (추천 레시피)
+    // ========================================
+    function RecommendPage() {
+      const { recipes, ingredients } = useData();
+      const { navigate } = useRouter();
+      const [selected, setSelected] = useState(null);
+
+      const ingredientSet = useMemo(
+        () => new Set(ingredients.map((i) => i.name.trim().toLowerCase())),
+        [ingredients]
+      );
+
+      const ranked = useMemo(() => {
+        return recipes
+          .map((r) => {
+            const total = r.ingredients.length;
+            const have = r.ingredients.filter((ing) => ingredientSet.has(ing.name.trim().toLowerCase()));
+            const missing = r.ingredients.filter((ing) => !ingredientSet.has(ing.name.trim().toLowerCase()));
+            const ratio = total === 0 ? 0 : have.length / total;
+            return { recipe: r, total, haveCount: have.length, missing, ratio };
+          })
+          .sort((a, b) => {
+            if (b.ratio !== a.ratio) return b.ratio - a.ratio;
+            return a.missing.length - b.missing.length;
+          });
+      }, [recipes, ingredientSet]);
+
+      const cookableNow = ranked.filter((x) => x.ratio === 1).length;
+
+      return (
+        <div className="space-y-4 fade-in">
+          <Card className="!p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">✨</span>
+                <div>
+                  <h2 className="text-lg font-bold text-amber-900">추천 레시피</h2>
+                  <p className="text-xs text-amber-700">
+                    내 냉장고 재료 {ingredients.length}개 기준 · 지금 만들 수 있는 요리 {cookableNow}개
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => navigate('/ingredients')}>🥕 재료 관리</Button>
+                <Button size="sm" variant="primary" onClick={() => navigate('/new')}>+ 레시피</Button>
+              </div>
+            </div>
+          </Card>
+
+          {ingredients.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="🧊"
+                title="냉장고가 비어있어요"
+                description="가지고 있는 재료를 추가하면, 만들 수 있는 요리를 추천해드릴게요!"
+                action={<Button variant="primary" onClick={() => navigate('/ingredients')}>🥕 재료 추가하러 가기</Button>}
+              />
+            </Card>
+          ) : recipes.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="📓"
+                title="저장된 레시피가 없어요"
+                description="추천을 받으려면 먼저 레시피를 작성해주세요!"
+                action={<Button variant="primary" onClick={() => navigate('/new')}>✏️ 레시피 작성하기</Button>}
+              />
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {ranked.map(({ recipe: r, total, haveCount, missing, ratio }) => {
+                const percent = Math.round(ratio * 100);
+                const cookable = ratio === 1;
+                const barColor = cookable ? 'bg-green-500' : ratio >= 0.5 ? 'bg-orange-400' : 'bg-amber-300';
+                return (
+                  <Card key={r.id} onClick={() => setSelected(r)} className="relative flex flex-col">
+                    {cookable && (
+                      <div className="absolute -top-2 -right-2">
+                        <Badge variant="success" className="shadow">✨ 만들 수 있어요!</Badge>
+                      </div>
+                    )}
+                    <div className="text-3xl mb-2">🍽️</div>
+                    <h3 className="font-bold text-amber-900 text-base mb-1 truncate">{r.title}</h3>
+                    {r.description && <p className="text-sm text-amber-700 mb-3 line-clamp-2">{r.description}</p>}
+
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-semibold text-amber-900">매칭률</span>
+                        <span className="text-amber-700">{haveCount}/{total} 재료 보유 · {percent}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-amber-100 rounded-full overflow-hidden">
+                        <div className={`h-full ${barColor} transition-all`} style={{ width: `${percent}%` }} />
+                      </div>
+                    </div>
+
+                    {missing.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-amber-100">
+                        <p className="text-xs text-amber-700">
+                          <span className="font-semibold text-red-500">부족한 재료:</span>{' '}
+                          <span className="text-amber-800">{missing.map((m) => m.name).join(', ')}</span>
+                        </p>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          <Modal isOpen={!!selected} onClose={() => setSelected(null)} title={selected?.title || ''} size="lg">
+            {selected && (
+              <div className="space-y-5">
+                {selected.description && <p className="text-amber-800">{selected.description}</p>}
+                <div>
+                  <h4 className="font-bold text-amber-900 mb-2 flex items-center gap-1.5">🥕 재료</h4>
+                  <ul className="grid grid-cols-2 gap-2">
+                    {selected.ingredients.map((ing, idx) => {
+                      const have = ingredientSet.has(ing.name.trim().toLowerCase());
+                      return (
+                        <li key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${have ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                          <span className="text-amber-900">
+                            <span className="mr-1">{have ? '✅' : '❌'}</span>{ing.name}
+                          </span>
+                          {ing.qty && <span className="text-xs text-amber-600">{ing.qty}</span>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold text-amber-900 mb-2 flex items-center gap-1.5">👩‍🍳 조리법</h4>
+                  <ol className="space-y-3">
+                    {selected.steps.map((s, idx) => (
+                      <li key={idx} className="flex gap-3">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-orange-500 text-white text-sm font-bold flex items-center justify-center">{idx + 1}</span>
+                        <p className="text-amber-900 leading-relaxed whitespace-pre-wrap pt-0.5">{s}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <div className="flex justify-end pt-3 border-t border-amber-100">
+                  <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>닫기</Button>
+                </div>
+              </div>
+            )}
+          </Modal>
+        </div>
+      );
+    }
+
+    // ========================================
+    // === AI Page ===
+    // 📄 Page — AI Chef (UI only, mock behavior)
+    // ========================================
+    function AiHero() {
+      return (
+        <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-orange-500 via-amber-500 to-pink-500 text-white shadow-lg">
+          <div className="absolute -top-10 -right-10 text-[160px] opacity-20 select-none">✨</div>
+          <div className="relative">
+            <Badge className="bg-white/20 text-white border border-white/30 mb-3">BETA</Badge>
+            <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight mb-2">
+              AI 셰프와 함께 요리하세요
+            </h1>
+            <p className="text-amber-50/95 text-sm sm:text-base max-w-xl">
+              냉장고 재료로 맞춤 레시피를 추천받고, 궁금한 건 AI 셰프에게 물어보세요.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    function AiRecipeGenerator() {
+      const { ingredients } = useData();
+      const [cuisine, setCuisine] = useState('한식');
+      const [cookTime, setCookTime] = useState(20);
+      const [difficulty, setDifficulty] = useState('쉬움');
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+
+      const cuisines = ['한식', '양식', '중식', '일식', '디저트'];
+      const difficulties = ['쉬움', '보통', '어려움'];
+
+      const handleGenerate = () => {
+        setLoading(true);
+        setResult(null);
+        setTimeout(() => {
+          // Mock recipe
+          const mock = {
+            title: `${cuisine} 스타일 ${ingredients[0]?.name || '제철'} 볶음`,
+            description: `AI가 ${cookTime}분 안에 만들 수 있는 ${difficulty} 난이도의 ${cuisine} 레시피를 제안했어요.`,
+            ingredients: [
+              { name: ingredients[0]?.name || '양파', qty: '1개' },
+              { name: ingredients[1]?.name || '계란', qty: '2개' },
+              { name: '간장', qty: '1큰술' },
+              { name: '참기름', qty: '약간' },
+              { name: '다진 마늘', qty: '1작은술' },
+            ],
+            steps: [
+              '재료를 먹기 좋은 크기로 손질해 주세요.',
+              '팬을 달군 뒤 참기름을 두르고 마늘을 볶아 향을 냅니다.',
+              '주재료를 넣고 중불에서 3~5분간 볶아주세요.',
+              '간장으로 간을 맞추고, 마무리로 살짝 더 볶아 완성합니다.',
+            ],
+          };
+          setResult(mock);
+          setLoading(false);
+        }, 2000);
+      };
+
+      const ingredientSet = useMemo(
+        () => new Set(ingredients.map((i) => i.name.trim().toLowerCase())),
+        [ingredients]
+      );
+
+      return (
+        <Card>
+          <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2 mb-1">
+            <span>🤖</span> AI 레시피 생성
+          </h2>
+          <p className="text-sm text-amber-700 mb-4">냉장고 재료로 AI가 레시피를 추천해드려요</p>
+
+          {/* 보유 재료 칩 */}
+          <div className="mb-5">
+            <div className="text-xs font-semibold text-amber-900 mb-2">내 재료 ({ingredients.length})</div>
+            {ingredients.length === 0 ? (
+              <div className="text-sm text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                냉장고가 비어있어요. 재료 탭에서 추가해주세요!
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {ingredients.slice(0, 20).map((i) => (
+                  <Badge key={i.id} variant="info">🥕 {i.name}</Badge>
+                ))}
+                {ingredients.length > 20 && (
+                  <Badge>+{ingredients.length - 20}</Badge>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 요리 종류 */}
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-amber-900 mb-2">요리 종류</div>
+            <div className="flex flex-wrap gap-2">
+              {cuisines.map((c) => {
+                const active = cuisine === c;
+                return (
+                  <button key={c} type="button" onClick={() => setCuisine(c)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${
+                      active
+                        ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                        : 'bg-white text-amber-800 border-amber-200 hover:border-orange-300'
+                    }`}>
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 조리 시간 슬라이더 */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-amber-900">조리 시간</span>
+              <span className="text-sm font-bold text-orange-600">{cookTime}분</span>
+            </div>
+            <input
+              type="range" min="5" max="60" step="5"
+              value={cookTime}
+              onChange={(e) => setCookTime(Number(e.target.value))}
+              className="w-full accent-orange-500"
+            />
+            <div className="flex justify-between text-[10px] text-amber-600 mt-1">
+              <span>5분</span><span>30분</span><span>60분</span>
+            </div>
+          </div>
+
+          {/* 난이도 */}
+          <div className="mb-5">
+            <div className="text-xs font-semibold text-amber-900 mb-2">난이도</div>
+            <div className="flex flex-wrap gap-2">
+              {difficulties.map((d) => {
+                const active = difficulty === d;
+                return (
+                  <button key={d} type="button" onClick={() => setDifficulty(d)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${
+                      active
+                        ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                        : 'bg-white text-amber-800 border-amber-200 hover:border-amber-400'
+                    }`}>
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 생성 버튼 */}
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={loading}
+            className="w-full py-3.5 rounded-xl font-bold text-white text-base bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-md transition disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                AI가 레시피를 생각 중...
+              </span>
+            ) : (
+              '✨ AI 레시피 생성하기'
+            )}
+          </button>
+
+          {/* 결과 카드 */}
+          {result && (
+            <div className="mt-6 border-2 border-orange-200 rounded-2xl p-5 bg-gradient-to-br from-orange-50 to-amber-50 fade-in">
+              <div className="flex items-start justify-between mb-2 gap-3">
+                <div>
+                  <Badge variant="info" className="mb-1">🤖 AI 추천</Badge>
+                  <h3 className="text-xl font-extrabold text-amber-900">{result.title}</h3>
+                </div>
+              </div>
+              <p className="text-sm text-amber-800 mb-4">{result.description}</p>
+
+              <div className="mb-4">
+                <h4 className="font-bold text-amber-900 mb-2 text-sm">🥕 재료</h4>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {result.ingredients.map((ing, idx) => {
+                    const have = ingredientSet.has(ing.name.trim().toLowerCase());
+                    return (
+                      <li key={idx} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${have ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                        <span className="text-amber-900">
+                          <span className="mr-1">{have ? '✅' : '❌'}</span>{ing.name}
+                        </span>
+                        <span className="text-xs text-amber-600">{ing.qty}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div className="mb-4">
+                <h4 className="font-bold text-amber-900 mb-2 text-sm">👩‍🍳 조리법</h4>
+                <ol className="space-y-2">
+                  {result.steps.map((s, idx) => (
+                    <li key={idx} className="flex gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">{idx + 1}</span>
+                      <p className="text-amber-900 text-sm leading-relaxed pt-0.5">{s}</p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={() => alert('곧 출시!')}
+              >
+                💾 내 레시피로 저장
+              </Button>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
+    function AiChatbot() {
+      const [messages, setMessages] = useState([
+        { role: 'ai', text: '안녕하세요! 요리 관련해서 무엇이든 물어보세요 🧑‍🍳' },
+      ]);
+      const [input, setInput] = useState('');
+      const [typing, setTyping] = useState(false);
+      const scrollRef = useRef(null);
+
+      const quickQuestions = [
+        '오늘 뭐 먹지?',
+        '이 재료로 뭐 만들까?',
+        '초보도 만들 수 있는 요리',
+      ];
+
+      useEffect(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, [messages, typing]);
+
+      const handleSend = () => {
+        const text = input.trim();
+        if (!text) return;
+        setMessages((prev) => [...prev, { role: 'user', text }]);
+        setInput('');
+        setTyping(true);
+        setTimeout(() => {
+          setMessages((prev) => [
+            ...prev,
+            { role: 'ai', text: '죄송합니다, 아직 학습 중이에요! 곧 더 똑똑해져서 돌아올게요 🤖' },
+          ]);
+          setTyping(false);
+        }, 1000);
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      };
+
+      return (
+        <Card>
+          <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2 mb-1">
+            <span>💬</span> AI 요리 챗봇
+          </h2>
+          <p className="text-sm text-amber-700 mb-4">요리에 관한 모든 질문, AI 셰프에게 물어보세요</p>
+
+          {/* 메시지 영역 */}
+          <div
+            ref={scrollRef}
+            className="h-72 overflow-y-auto bg-amber-50/60 border border-amber-100 rounded-xl p-3 space-y-2 mb-3"
+          >
+            {messages.map((m, idx) => (
+              <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${
+                  m.role === 'user'
+                    ? 'bg-orange-500 text-white rounded-br-sm'
+                    : 'bg-white text-amber-900 border border-amber-100 rounded-bl-sm'
+                }`}>
+                  {m.role === 'ai' && <span className="mr-1">🤖</span>}
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {typing && (
+              <div className="flex justify-start">
+                <div className="bg-white text-amber-900 border border-amber-100 rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm">
+                  <span className="inline-flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 빠른 질문 칩 */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {quickQuestions.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setInput(q)}
+                className="px-3 py-1 text-xs font-medium rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 transition"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {/* 입력창 */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="메시지를 입력하세요..."
+              className="flex-1 px-3 py-2 rounded-lg border border-amber-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+            />
+            <Button variant="primary" onClick={handleSend} disabled={!input.trim() || typing}>
+              전송
+            </Button>
+          </div>
+        </Card>
+      );
+    }
+
+    function AiPhotoRecognition() {
+      const handleClick = () => alert('곧 출시될 기능이에요!');
+      return (
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2">
+              <span>📸</span> 사진으로 재료 인식
+            </h2>
+            <Badge variant="warning">Coming Soon</Badge>
+          </div>
+          <button
+            type="button"
+            onClick={handleClick}
+            className="w-full border-2 border-dashed border-amber-300 rounded-2xl py-10 px-4 bg-amber-50/60 hover:bg-amber-50 hover:border-orange-400 transition text-center group"
+          >
+            <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">📷</div>
+            <p className="font-semibold text-amber-900 mb-1">재료 사진을 올리면 AI가 자동으로 인식해요</p>
+            <p className="text-xs text-amber-600">클릭하거나 이미지를 여기로 드래그하세요</p>
+          </button>
+        </Card>
+      );
+    }
+
+    function AiPage() {
+      return (
+        <div className="space-y-6 fade-in">
+          <AiHero />
+          <AiRecipeGenerator />
+          <AiChatbot />
+          <AiPhotoRecognition />
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+    function PageRouter() {
+      const { path } = useRouter();
+      if (path === '/ingredients') return <IngredientsPage />;
+      if (path === '/recipes') return <RecipesPage />;
+      if (path === '/new') return <NewRecipePage />;
+      if (path === '/ai') return <AiPage />;
+      return <RecommendPage />;
+    }
+
+    function App() {
+      return (
+        <Router>
+          <DataProvider>
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              <GlobalStatusBar />
+              <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
+                <PageRouter />
+              </main>
+              <footer className="text-center text-xs text-amber-700 py-6">
+                🍳 홈 레시피 · 냉장고를 똑똑하게
+              </footer>
+            </div>
+          </DataProvider>
+        </Router>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
