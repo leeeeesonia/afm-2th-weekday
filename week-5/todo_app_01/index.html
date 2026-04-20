@@ -136,6 +136,12 @@
       update: (id, patch) => apiRequest(`/todos/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
       remove: (id) => apiRequest(`/todos/${id}`, { method: 'DELETE' }),
       clearCompleted: () => apiRequest('/todos?completed=true', { method: 'DELETE' }),
+      admin: {
+        users: () => apiRequest('/admin/users'),
+        deleteUser: (id) => apiRequest(`/admin/users/${id}`, { method: 'DELETE' }),
+        todos: () => apiRequest('/admin/todos'),
+        deleteTodo: (id) => apiRequest(`/admin/todos/${id}`, { method: 'DELETE' }),
+      },
     };
 
     // ========================================
@@ -316,6 +322,211 @@
       );
     }
 
+    // ========================================
+    // Routing (minimal pathname-based)
+    // ========================================
+
+    function navigate(path) {
+      if (window.location.pathname !== path) {
+        window.history.pushState({}, '', path);
+      }
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+
+    function usePathname() {
+      const [pathname, setPathname] = useState(window.location.pathname);
+      useEffect(() => {
+        const onChange = () => setPathname(window.location.pathname);
+        window.addEventListener('popstate', onChange);
+        return () => window.removeEventListener('popstate', onChange);
+      }, []);
+      return pathname;
+    }
+
+    // ========================================
+    // Admin page
+    // ========================================
+
+    function RoleBadge({ role }) {
+      const isAdmin = role === 'admin';
+      return (
+        <span className={`inline-block px-2 py-0.5 text-[10px] tracking-wide rounded-full border ${
+          isAdmin
+            ? 'border-neutral-900 text-neutral-900 bg-neutral-100'
+            : 'border-neutral-200 text-neutral-500'
+        }`}>
+          {isAdmin ? 'ADMIN' : 'USER'}
+        </span>
+      );
+    }
+
+    function AdminPage({ user, onLogout, onAuthError }) {
+      const [tab, setTab] = useState('users'); // 'users' | 'todos'
+      const [users, setUsers] = useState([]);
+      const [todos, setTodos] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      const handleError = useCallback((e, fallback) => {
+        if (e instanceof AuthError) { onAuthError(); return; }
+        setError(e.message || fallback);
+      }, [onAuthError]);
+
+      const refresh = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          if (tab === 'users') {
+            setUsers(await api.admin.users());
+          } else {
+            setTodos(await api.admin.todos());
+          }
+        } catch (e) {
+          handleError(e, '불러오기에 실패했습니다.');
+        } finally {
+          setLoading(false);
+        }
+      }, [tab, handleError]);
+
+      useEffect(() => { refresh(); }, [refresh]);
+
+      const deleteUser = async (u) => {
+        if (u.id === user.id) {
+          setError('자기 자신은 삭제할 수 없습니다.');
+          return;
+        }
+        if (!window.confirm(`${u.email} 유저와 해당 유저의 모든 할 일을 삭제하시겠어요?`)) return;
+        try {
+          await api.admin.deleteUser(u.id);
+          setUsers(prev => prev.filter(x => x.id !== u.id));
+        } catch (e) {
+          handleError(e, '유저 삭제에 실패했습니다.');
+        }
+      };
+
+      const deleteTodo = async (t) => {
+        if (!window.confirm(`"${t.text}" 를 삭제하시겠어요?`)) return;
+        try {
+          await api.admin.deleteTodo(t.id);
+          setTodos(prev => prev.filter(x => x.id !== t.id));
+        } catch (e) {
+          handleError(e, '할 일 삭제에 실패했습니다.');
+        }
+      };
+
+      return (
+        <main className="min-h-screen w-full flex justify-center px-4 sm:px-6 py-12 sm:py-16">
+          <div className="w-full max-w-3xl">
+            <div className="flex items-center justify-between gap-4 mb-10">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="text-xs tracking-wide text-neutral-400 hover:text-neutral-900 transition-colors"
+              >
+                ← 내 할 일로
+              </button>
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-neutral-500 font-light truncate">{user.email}</span>
+                <RoleBadge role={user.role} />
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="text-xs tracking-wide text-neutral-400 hover:text-neutral-900 transition-colors"
+                >
+                  로그아웃
+                </button>
+              </div>
+            </div>
+
+            <header className="mb-10">
+              <h1 className="text-3xl font-extralight tracking-widest text-neutral-900 uppercase">관리자 패널</h1>
+              <p className="mt-2 text-sm text-neutral-400 font-light">유저와 전체 할 일을 관리합니다.</p>
+            </header>
+
+            <div className="flex items-center gap-6 mb-6 border-b border-neutral-100">
+              {[
+                { key: 'users', label: '유저' },
+                { key: 'todos', label: '전체 할 일' },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTab(t.key)}
+                  className={`pb-3 text-xs tracking-wide transition-colors ${
+                    tab === t.key
+                      ? 'text-neutral-900 font-medium border-b-2 border-neutral-900 -mb-px'
+                      : 'text-neutral-400 hover:text-neutral-700'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {error && <div className="mb-4 text-xs text-red-500 font-light">{error}</div>}
+
+            {loading ? (
+              <div className="py-20 text-center">
+                <p className="text-sm text-neutral-400 font-light">불러오는 중...</p>
+              </div>
+            ) : tab === 'users' ? (
+              users.length === 0 ? (
+                <div className="py-20 text-center"><p className="text-sm text-neutral-400 font-light">유저가 없습니다.</p></div>
+              ) : (
+                <ul className="border-t border-neutral-100">
+                  {users.map(u => (
+                    <li key={u.id} className="group flex items-center gap-4 py-4 border-b border-neutral-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-neutral-800 truncate">{u.email}</span>
+                          <RoleBadge role={u.role} />
+                        </div>
+                        <div className="mt-1 text-xs text-neutral-400 font-light">
+                          {u.name || '이름 없음'} · 할 일 {u.todo_count}개
+                        </div>
+                      </div>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => deleteUser(u)}
+                        disabled={u.id === user.id}
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      >
+                        삭제
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : (
+              todos.length === 0 ? (
+                <div className="py-20 text-center"><p className="text-sm text-neutral-400 font-light">할 일이 없습니다.</p></div>
+              ) : (
+                <ul className="border-t border-neutral-100">
+                  {todos.map(t => (
+                    <li key={t.id} className="group flex items-center gap-4 py-4 border-b border-neutral-100">
+                      <span className={`flex-1 text-sm ${t.completed ? 'text-neutral-400 line-through' : 'text-neutral-800'}`}>
+                        {t.text}
+                      </span>
+                      <span className="text-xs text-neutral-400 font-light truncate max-w-[200px]">{t.user_email}</span>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => deleteTodo(t)}
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      >
+                        삭제
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            )}
+          </div>
+        </main>
+      );
+    }
+
     function TodoPage({ user, onLogout, onAuthError }) {
       const [todos, setTodos] = useState([]);
       const [input, setInput] = useState('');
@@ -426,6 +637,15 @@
               <span className="text-xs text-neutral-500 font-light truncate">
                 {user && user.email}
               </span>
+              {user && user.role === 'admin' && (
+                <a
+                  href="/admin"
+                  onClick={(e) => { e.preventDefault(); navigate('/admin'); }}
+                  className="text-xs tracking-wide text-neutral-900 font-medium hover:text-neutral-600 transition-colors"
+                >
+                  관리자 패널
+                </a>
+              )}
               <button
                 type="button"
                 onClick={onLogout}
@@ -513,6 +733,7 @@
     function App() {
       const [status, setStatus] = useState('loading'); // 'loading' | 'auth' | 'app'
       const [user, setUser] = useState(null);
+      const pathname = usePathname();
 
       useEffect(() => {
         const token = tokenStore.get();
@@ -532,12 +753,16 @@
       const handleAuthed = (u) => {
         setUser(u);
         setStatus('app');
+        if (u && u.role === 'admin' && window.location.pathname !== '/admin') {
+          navigate('/admin');
+        }
       };
 
       const handleLogout = () => {
         tokenStore.clear();
         setUser(null);
         setStatus('auth');
+        if (window.location.pathname !== '/') navigate('/');
       };
 
       if (status === 'loading') {
@@ -550,6 +775,15 @@
 
       if (status === 'auth') {
         return <AuthScreen onAuthed={handleAuthed} />;
+      }
+
+      if (pathname === '/admin') {
+        if (user && user.role === 'admin') {
+          return <AdminPage user={user} onLogout={handleLogout} onAuthError={handleLogout} />;
+        }
+        // 관리자 아니면 홈으로
+        navigate('/');
+        return null;
       }
 
       return <TodoPage user={user} onLogout={handleLogout} onAuthError={handleLogout} />;
