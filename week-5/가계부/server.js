@@ -4,10 +4,12 @@
 // Requires DATABASE_URL env var (loaded from .env.local).
 // No hardcoded fallback — if missing, the process exits.
 
-require('dotenv').config({ path: '.env.local' });
+const path = require('path');
+// Load .env.local for local development. On Vercel this file isn't deployed,
+// so dotenv is a no-op and env vars come from the Vercel dashboard.
+require('dotenv').config({ path: path.join(__dirname, '.env.local') });
 
 const express = require('express');
-const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const { Pool } = require('pg');
@@ -21,6 +23,11 @@ if (!DATABASE_URL) {
 const PORT = Number(process.env.PORT) || 3001;
 const DEMO_EMAIL = 'demo@ledger.local';
 
+// Disable receipt uploads on Vercel (read-only FS, no Blob storage configured).
+// Auto-enabled when running on Vercel; can also be forced via DISABLE_UPLOADS=1 for local testing.
+const UPLOADS_DISABLED =
+  !!process.env.VERCEL || process.env.DISABLE_UPLOADS === '1';
+
 // ---- db ----
 const pool = new Pool({
   connectionString: DATABASE_URL,
@@ -29,6 +36,7 @@ const pool = new Pool({
 
 // ---- state ----
 let demoUserId = null;
+let demoUserPromise = null;
 
 async function resolveDemoUser() {
   const { rows } = await pool.query('SELECT id FROM users WHERE email = $1', [DEMO_EMAIL]);
@@ -37,34 +45,71 @@ async function resolveDemoUser() {
   }
   demoUserId = rows[0].id;
   console.log(`[db] demo user: ${demoUserId}`);
+  return demoUserId;
+}
+
+// Memoized lazy loader — called per-request so the Vercel serverless cold start
+// doesn't race against `app.listen` during startup (which no longer runs on Vercel).
+async function ensureDemoUser() {
+  if (demoUserId) return demoUserId;
+  if (!demoUserPromise) {
+    demoUserPromise = resolveDemoUser().catch(err => {
+      demoUserPromise = null; // allow retry on next request
+      throw err;
+    });
+  }
+  return demoUserPromise;
 }
 
 // ---- app ----
 const app = express();
 app.use(express.json());
 
-// uploads dir (local disk)
+// uploads dir (local disk) — only created when uploads are enabled.
+// On Vercel the filesystem is read-only, so we skip this entirely.
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-app.use('/uploads', express.static(UPLOAD_DIR));
+if (!UPLOADS_DISABLED) {
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  app.use('/uploads', express.static(UPLOAD_DIR));
+}
 app.use(express.static(__dirname, { index: 'index.html' }));
 
-// multer for receipt uploads (disk storage, 2MB, images + pdf)
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const safe = file.originalname.replace(/[^\w.\-]+/g, '_');
-    cb(null, `${req.params.id}-${Date.now()}-${safe}`);
-  },
+// multer for receipt uploads — only configured when uploads are enabled.
+let upload = null;
+if (!UPLOADS_DISABLED) {
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      const safe = file.originalname.replace(/[^\w.\-]+/g, '_');
+      cb(null, `${req.params.id}-${Date.now()}-${safe}`);
+    },
+  });
+  upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') cb(null, true);
+      else cb(new Error('Only images and PDF are allowed'));
+    },
+  });
+}
+
+// Lightweight config endpoint so the client can render the UI conditionally.
+// Registered BEFORE the ensureDemoUser middleware so it stays cheap (no DB hit).
+app.get('/api/config', (_req, res) => {
+  res.json({ success: true, data: { uploadsEnabled: !UPLOADS_DISABLED } });
 });
-const upload = multer({
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') cb(null, true);
-    else cb(new Error('Only images and PDF are allowed'));
-  },
+
+// Make every /api/* handler wait for the demo user lookup before running.
+// This replaces the old startup-time resolve so routes work in Vercel serverless.
+app.use('/api', async (_req, res, next) => {
+  try {
+    await ensureDemoUser();
+    next();
+  } catch (err) {
+    console.error('[middleware] ensureDemoUser failed:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // ---- helpers ----
@@ -353,7 +398,15 @@ app.delete('/api/entries/:id', async (req, res) => {
 });
 
 // POST /api/entries/:id/receipt (multipart form-data, field name "file")
+// Disabled on Vercel (read-only filesystem). Returns 503 with a clear Korean message.
 app.post('/api/entries/:id/receipt', (req, res) => {
+  if (UPLOADS_DISABLED) {
+    return res.status(503).json({
+      success: false,
+      code: 'uploads_disabled',
+      message: '영수증 업로드는 현재 비활성화되어 있습니다. (로컬 개발 환경에서만 사용 가능)',
+    });
+  }
   upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ success: false, message: err.message });
     try {
@@ -387,16 +440,21 @@ app.use((err, _req, res, _next) => {
 });
 
 // ---- startup ----
-(async () => {
-  try {
-    await resolveDemoUser();
-    app.listen(PORT, () => {
-      console.log(`[server] http://localhost:${PORT}`);
-    });
-  } catch (e) {
-    console.error('[fatal] startup failed:', e.message);
-    process.exit(1);
-  }
-})();
+// Only listen when run directly (node server.js / npm start).
+// When required as a module (Vercel serverless via api/index.js), skip listen.
+if (require.main === module) {
+  (async () => {
+    try {
+      await ensureDemoUser();
+      app.listen(PORT, () => {
+        console.log(`[server] http://localhost:${PORT}`);
+        if (UPLOADS_DISABLED) console.log('[server] receipt uploads DISABLED (DISABLE_UPLOADS=1)');
+      });
+    } catch (e) {
+      console.error('[fatal] startup failed:', e.message);
+      process.exit(1);
+    }
+  })();
+}
 
 module.exports = app;
