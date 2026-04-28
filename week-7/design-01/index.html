@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>왕과 사는 남자 (2026) — Clay Poster</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+KR:wght@400;500;700;900&family=Gowun+Batang:wght@400;700&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --paper: #f3e6cf;
+      --paper-2: #ead8b8;
+      --ink: #2b1d12;
+      --terra: #c8453b;
+      --terra-deep: #8e2a23;
+      --gold: #c9a24a;
+      --moss: #6b7a3a;
+      --olive: #8b6f3f;
+      --sky: #c9c7a7;
+      --cream: #f5e9d3;
+      --shadow: rgba(60, 35, 15, 0.18);
+    }
+
+    html,
+    body {
+      background: radial-gradient(circle at 30% 20%, #f7ecd6 0%, #e9d6b3 60%, #d8bf91 100%);
+      font-family: 'Noto Serif KR', 'Nanum Myeongjo', serif;
+      color: var(--ink);
+      min-height: 100%;
+    }
+
+    /* 종이 그레인 — body 전체 톤 */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.12  0 0 0 0 0.06  0 0 0 0.18 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>");
+      mix-blend-mode: multiply;
+      opacity: 0.55;
+      z-index: 1;
+    }
+
+    .clay-title {
+      font-family: 'Nanum Myeongjo', 'Gowun Batang', serif;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      color: #2a1a10;
+      text-shadow:
+        0 1px 0 rgba(255, 240, 210, 0.5),
+        0 2px 0 rgba(60, 35, 15, 0.12),
+        0 6px 12px rgba(60, 35, 15, 0.18);
+    }
+
+    .seal {
+      font-family: 'Nanum Myeongjo', serif;
+      letter-spacing: 0.2em;
+    }
+
+    .vignette {
+      box-shadow:
+        inset 0 0 60px rgba(60, 35, 15, 0.25),
+        0 30px 60px -20px rgba(60, 35, 15, 0.45),
+        0 8px 18px rgba(60, 35, 15, 0.25);
+    }
+
+    .grain-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.07  0 0 0 0 0.04  0 0 0 0.22 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.7'/></svg>");
+      mix-blend-mode: multiply;
+      opacity: 0.7;
+    }
+
+    .credits-line {
+      letter-spacing: 0.18em;
+    }
+
+    .copyline {
+      font-family: 'Gowun Batang', 'Nanum Myeongjo', serif;
+    }
+
+    /* 살짝 비대칭 흔들림 */
+    @keyframes claySway {
+      0%, 100% { transform: rotate(-0.3deg) translateY(0); }
+      50% { transform: rotate(0.3deg) translateY(-2px); }
+    }
+    .clay-sway { animation: claySway 8s ease-in-out infinite; }
+
+    /* 도장 회전 */
+    .stamp {
+      transform: rotate(-8deg);
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useMemo } = React;
+
+    // ========================================
+    // 🎨 Clay SVG Filters (재사용 가능한 defs)
+    // ========================================
+    function ClayDefs() {
+      return (
+        <defs>
+          {/* 클레이 표면: turbulence + diffuseLighting (폭신한 음영) */}
+          <filter id="clay" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="noise" />
+            <feDiffuseLighting in="noise" lightingColor="#fff8e8" surfaceScale="1.4" result="light">
+              <feDistantLight azimuth="135" elevation="55" />
+            </feDiffuseLighting>
+            <feComposite in="light" in2="SourceGraphic" operator="in" result="texture" />
+            <feBlend in="SourceGraphic" in2="texture" mode="multiply" />
+          </filter>
+
+          {/* 부드러운 그림자 */}
+          <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+            <feOffset dx="0" dy="3" result="off" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.45" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          {/* 표면 미세 텍스처 (점토 자국) */}
+          <filter id="bumps" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="2.4" numOctaves="2" seed="7" />
+            <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.35 0" />
+            <feComposite in2="SourceGraphic" operator="in" />
+            <feMerge>
+              <feMergeNode in="SourceGraphic" />
+              <feMergeNode />
+            </feMerge>
+          </filter>
+
+          {/* 종이 그레인 (포스터 면) */}
+          <filter id="paperGrain" x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="11" />
+            <feColorMatrix values="0 0 0 0 0.16  0 0 0 0 0.10  0 0 0 0 0.05  0 0 0 0.15 0" />
+            <feComposite in2="SourceGraphic" operator="in" />
+          </filter>
+
+          {/* 그라데이션들 */}
+          <radialGradient id="bgPaper" cx="50%" cy="35%" r="80%">
+            <stop offset="0%" stopColor="#f7ecd6" />
+            <stop offset="55%" stopColor="#ead8b8" />
+            <stop offset="100%" stopColor="#cfb487" />
+          </radialGradient>
+
+          <linearGradient id="skyMist" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#e8d9b8" />
+            <stop offset="100%" stopColor="#d3c098" />
+          </linearGradient>
+
+          <radialGradient id="moonGlow" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stopColor="#fff5d8" />
+            <stop offset="80%" stopColor="#f0dcae" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#f0dcae" stopOpacity="0" />
+          </radialGradient>
+
+          <linearGradient id="mountainBack" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#9aa66e" />
+            <stop offset="100%" stopColor="#6b7a3a" />
+          </linearGradient>
+
+          <linearGradient id="mountainFront" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#a48450" />
+            <stop offset="100%" stopColor="#6e5028" />
+          </linearGradient>
+
+          <linearGradient id="riverGrad" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#bcb88a" />
+            <stop offset="50%" stopColor="#d6cf9a" />
+            <stop offset="100%" stopColor="#a8a070" />
+          </linearGradient>
+
+          <radialGradient id="kingRobe" cx="50%" cy="40%" r="65%">
+            <stop offset="0%" stopColor="#d85a4f" />
+            <stop offset="70%" stopColor="#c8453b" />
+            <stop offset="100%" stopColor="#8e2a23" />
+          </radialGradient>
+
+          <radialGradient id="elderRobe" cx="50%" cy="40%" r="65%">
+            <stop offset="0%" stopColor="#e7dabb" />
+            <stop offset="70%" stopColor="#c9b388" />
+            <stop offset="100%" stopColor="#8e6f43" />
+          </radialGradient>
+
+          <radialGradient id="skinTone" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stopColor="#f3d6b3" />
+            <stop offset="100%" stopColor="#c89b6f" />
+          </radialGradient>
+
+          <radialGradient id="thatch" cx="50%" cy="30%" r="80%">
+            <stop offset="0%" stopColor="#d8b67a" />
+            <stop offset="100%" stopColor="#7e5a2b" />
+          </radialGradient>
+        </defs>
+      );
+    }
+
+    // ========================================
+    // 🏔 배경 일러스트 (산세 + 청령포 + 초가집)
+    // ========================================
+    function PosterScene() {
+      // SVG viewBox: 600 x 900 (2:3)
+      return (
+        <svg
+          viewBox="0 0 600 900"
+          className="w-full h-full block"
+          role="img"
+          aria-label="왕과 사는 남자 — 점토로 빚은 사극 포스터 일러스트"
+        >
+          <ClayDefs />
+
+          {/* === 포스터 종이 베이스 === */}
+          <rect width="600" height="900" fill="url(#bgPaper)" />
+
+          {/* === 하늘 안개 === */}
+          <rect x="0" y="0" width="600" height="540" fill="url(#skyMist)" opacity="0.55" />
+
+          {/* === 흐릿한 달 === */}
+          <circle cx="450" cy="150" r="120" fill="url(#moonGlow)" />
+          <ellipse cx="450" cy="148" rx="48" ry="46" fill="#f6e6bd" opacity="0.85" filter="url(#bumps)" />
+
+          {/* === 멀리 산 (청령포 산세, 둥글둥글) === */}
+          <g filter="url(#clay)" opacity="0.92">
+            <path
+              d="M -20 470 Q 60 360 130 410 Q 200 350 280 420 Q 360 340 440 420 Q 520 360 620 440 L 620 560 L -20 560 Z"
+              fill="url(#mountainBack)"
+            />
+          </g>
+
+          {/* === 가까운 산 (앞쪽 흙산) === */}
+          <g filter="url(#clay)">
+            <path
+              d="M -20 560 Q 80 470 180 530 Q 260 470 340 540 Q 430 470 520 540 Q 580 510 620 540 L 620 700 L -20 700 Z"
+              fill="url(#mountainFront)"
+            />
+          </g>
+
+          {/* === 소나무들 (왼쪽 산 위) === */}
+          <g filter="url(#bumps)">
+            {/* tree 1 */}
+            <g transform="translate(80,470)">
+              <rect x="-3" y="0" width="6" height="34" fill="#5b3a1c" rx="2" />
+              <ellipse cx="0" cy="-6" rx="22" ry="14" fill="#3f5a2a" />
+              <ellipse cx="-10" cy="-18" rx="14" ry="10" fill="#4d6a36" />
+              <ellipse cx="9" cy="-20" rx="13" ry="9" fill="#4d6a36" />
+            </g>
+            {/* tree 2 */}
+            <g transform="translate(140,490)">
+              <rect x="-2" y="0" width="5" height="26" fill="#5b3a1c" rx="2" />
+              <ellipse cx="0" cy="-4" rx="16" ry="11" fill="#3f5a2a" />
+              <ellipse cx="-7" cy="-13" rx="10" ry="8" fill="#4d6a36" />
+            </g>
+            {/* tree 3 (오른쪽 멀리) */}
+            <g transform="translate(530,460)">
+              <rect x="-2" y="0" width="5" height="30" fill="#5b3a1c" rx="2" />
+              <ellipse cx="0" cy="-6" rx="20" ry="13" fill="#3f5a2a" />
+              <ellipse cx="9" cy="-18" rx="12" ry="9" fill="#4d6a36" />
+            </g>
+          </g>
+
+          {/* === 강물 (청령포를 휘감는 동강) === */}
+          <g filter="url(#clay)" opacity="0.85">
+            <path
+              d="M -20 640 Q 100 600 220 640 Q 340 680 460 630 Q 540 600 620 640 L 620 690 Q 540 660 460 680 Q 340 720 220 685 Q 100 650 -20 690 Z"
+              fill="url(#riverGrad)"
+            />
+          </g>
+
+          {/* === 초가집 (오른쪽 뒤) === */}
+          <g transform="translate(440,600)" filter="url(#clay)">
+            {/* 벽 */}
+            <rect x="-32" y="-2" width="64" height="38" rx="3" fill="#d9c69a" />
+            {/* 문 */}
+            <rect x="-8" y="14" width="16" height="22" rx="2" fill="#5b3a1c" />
+            {/* 지붕 */}
+            <path
+              d="M -42 -2 Q -36 -32 0 -36 Q 36 -32 42 -2 Q 30 -8 0 -10 Q -30 -8 -42 -2 Z"
+              fill="url(#thatch)"
+            />
+          </g>
+
+          {/* === 땅 그림자 (캐릭터 발 아래) === */}
+          <ellipse cx="220" cy="780" rx="120" ry="14" fill="#3a2a14" opacity="0.22" />
+          <ellipse cx="370" cy="800" rx="80" ry="10" fill="#3a2a14" opacity="0.20" />
+
+          {/* ============================================ */}
+          {/*  CHARACTER 1 — 어린 왕 (단종) — 왼쪽         */}
+          {/* ============================================ */}
+          <g transform="translate(220,720)" filter="url(#softShadow)">
+            <g filter="url(#clay)">
+              {/* 곤룡포 — 클레이 인형 비례 (큰 머리, 짧은 팔다리) */}
+              {/* 옷자락 */}
+              <path
+                d="M -78 60 Q -85 -10 -55 -45 Q -25 -65 0 -65 Q 25 -65 55 -45 Q 85 -10 78 60 Q 60 78 0 80 Q -60 78 -78 60 Z"
+                fill="url(#kingRobe)"
+              />
+              {/* 곤룡포 — 가슴 V 라인 */}
+              <path
+                d="M -22 -38 Q 0 -20 22 -38 L 14 -10 Q 0 -2 -14 -10 Z"
+                fill="#f3e6cf"
+                opacity="0.9"
+              />
+              {/* 자수 (어깨 둥근 점) */}
+              <circle cx="-46" cy="-20" r="6" fill="#c9a24a" />
+              <circle cx="46" cy="-20" r="6" fill="#c9a24a" />
+              {/* 팔 (작고 짧게) */}
+              <ellipse cx="-72" cy="20" rx="14" ry="22" fill="#a83329" transform="rotate(-12 -72 20)" />
+              <ellipse cx="72" cy="20" rx="14" ry="22" fill="#a83329" transform="rotate(12 72 20)" />
+              {/* 손 */}
+              <ellipse cx="-78" cy="42" rx="10" ry="9" fill="url(#skinTone)" />
+              <ellipse cx="78" cy="42" rx="10" ry="9" fill="url(#skinTone)" />
+
+              {/* 얼굴 */}
+              <ellipse cx="0" cy="-86" rx="42" ry="46" fill="url(#skinTone)" />
+              {/* 볼 홍조 */}
+              <ellipse cx="-22" cy="-78" rx="8" ry="5" fill="#e88a78" opacity="0.6" />
+              <ellipse cx="22" cy="-78" rx="8" ry="5" fill="#e88a78" opacity="0.6" />
+              {/* 눈 (점) */}
+              <ellipse cx="-13" cy="-90" rx="2.6" ry="3.4" fill="#2a1a10" />
+              <ellipse cx="13" cy="-90" rx="2.6" ry="3.4" fill="#2a1a10" />
+              {/* 입 (작은 곡선) */}
+              <path d="M -6 -74 Q 0 -70 6 -74" stroke="#7a3a25" strokeWidth="2" fill="none" strokeLinecap="round" />
+
+              {/* 익선관 (왕의 모자) */}
+              <g>
+                {/* 모자 본체 */}
+                <path
+                  d="M -36 -116 Q -38 -138 0 -142 Q 38 -138 36 -116 Q 30 -110 0 -110 Q -30 -110 -36 -116 Z"
+                  fill="#1f1610"
+                />
+                {/* 윗부분 둥근 봉우리 */}
+                <ellipse cx="-12" cy="-138" rx="10" ry="14" fill="#1f1610" />
+                <ellipse cx="14" cy="-138" rx="9" ry="12" fill="#1f1610" />
+                {/* 익선 (양쪽 작은 날개) */}
+                <ellipse cx="-40" cy="-122" rx="6" ry="10" fill="#1f1610" transform="rotate(-25 -40 -122)" />
+                <ellipse cx="40" cy="-122" rx="6" ry="10" fill="#1f1610" transform="rotate(25 40 -122)" />
+                {/* 가운데 금장식 */}
+                <circle cx="0" cy="-126" r="5" fill="#c9a24a" />
+              </g>
+            </g>
+          </g>
+
+          {/* ============================================ */}
+          {/*  CHARACTER 2 — 호장 엄흥도 (촌장) — 오른쪽   */}
+          {/* ============================================ */}
+          <g transform="translate(380,740)" filter="url(#softShadow)">
+            <g filter="url(#clay)">
+              {/* 도포 */}
+              <path
+                d="M -70 50 Q -78 -8 -50 -40 Q -22 -56 0 -56 Q 22 -56 50 -40 Q 78 -8 70 50 Q 55 66 0 68 Q -55 66 -70 50 Z"
+                fill="url(#elderRobe)"
+              />
+              {/* 옷고름 */}
+              <path d="M 4 -32 Q 10 -10 6 22" stroke="#8e6f43" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <ellipse cx="6" cy="-30" rx="6" ry="3" fill="#a48556" />
+              {/* 팔 */}
+              <ellipse cx="-64" cy="14" rx="12" ry="20" fill="#b89868" transform="rotate(-10 -64 14)" />
+              <ellipse cx="64" cy="14" rx="12" ry="20" fill="#b89868" transform="rotate(10 64 14)" />
+              {/* 손 */}
+              <ellipse cx="-70" cy="34" rx="9" ry="8" fill="url(#skinTone)" />
+              <ellipse cx="70" cy="34" rx="9" ry="8" fill="url(#skinTone)" />
+
+              {/* 얼굴 (조금 더 길쭉/푸근) */}
+              <ellipse cx="0" cy="-72" rx="36" ry="40" fill="url(#skinTone)" />
+              {/* 주름 */}
+              <path d="M -22 -78 Q -16 -76 -10 -80" stroke="#8a5a30" strokeWidth="1.4" fill="none" opacity="0.6" />
+              <path d="M 10 -80 Q 16 -76 22 -78" stroke="#8a5a30" strokeWidth="1.4" fill="none" opacity="0.6" />
+              {/* 눈 — 인자한 살짝 감은 눈 */}
+              <path d="M -16 -76 Q -11 -72 -6 -76" stroke="#2a1a10" strokeWidth="2" fill="none" strokeLinecap="round" />
+              <path d="M 6 -76 Q 11 -72 16 -76" stroke="#2a1a10" strokeWidth="2" fill="none" strokeLinecap="round" />
+              {/* 코 */}
+              <path d="M 0 -70 Q -2 -62 0 -58" stroke="#a16f44" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+              {/* 입 */}
+              <path d="M -6 -54 Q 0 -50 6 -54" stroke="#7a3a25" strokeWidth="2" fill="none" strokeLinecap="round" />
+              {/* 흰 수염 */}
+              <path
+                d="M -16 -52 Q -22 -38 -14 -28 Q -8 -22 0 -26 Q 8 -22 14 -28 Q 22 -38 16 -52 Q 8 -46 0 -46 Q -8 -46 -16 -52 Z"
+                fill="#f1ead8"
+              />
+              {/* 콧수염 */}
+              <path d="M -10 -56 Q -4 -52 0 -54 Q 4 -52 10 -56" stroke="#e8e0c8" strokeWidth="3" fill="none" strokeLinecap="round" />
+
+              {/* 갓 */}
+              <g>
+                {/* 갓 챙 */}
+                <ellipse cx="0" cy="-104" rx="56" ry="10" fill="#1f1610" opacity="0.95" />
+                {/* 갓 통 */}
+                <path
+                  d="M -22 -106 Q -22 -132 0 -134 Q 22 -132 22 -106 Z"
+                  fill="#1f1610"
+                />
+                {/* 갓 윗선 하이라이트 */}
+                <path d="M -16 -126 Q 0 -132 16 -126" stroke="#3a2a18" strokeWidth="1" fill="none" />
+              </g>
+            </g>
+          </g>
+
+          {/* === 발 아래 풀잎 === */}
+          <g filter="url(#bumps)">
+            <path d="M 130 800 Q 140 786 150 800" stroke="#6b7a3a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+            <path d="M 160 808 Q 170 794 180 808" stroke="#6b7a3a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+            <path d="M 460 808 Q 470 794 480 808" stroke="#6b7a3a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+            <path d="M 490 800 Q 500 786 510 800" stroke="#6b7a3a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+          </g>
+
+          {/* === 종이 그레인 오버레이 === */}
+          <rect width="600" height="900" fill="url(#bgPaper)" filter="url(#paperGrain)" opacity="0.25" mixBlendMode="multiply" />
+        </svg>
+      );
+    }
+
+    // ========================================
+    // 🪧 작은 도장 (인장)
+    // ========================================
+    function Seal({ className = '' }) {
+      return (
+        <div className={`stamp inline-flex items-center justify-center ${className}`}>
+          <svg viewBox="0 0 80 80" className="w-16 h-16">
+            <defs>
+              <filter id="sealRough">
+                <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" />
+                <feDisplacementMap in="SourceGraphic" scale="1.6" />
+              </filter>
+            </defs>
+            <g filter="url(#sealRough)">
+              <rect x="6" y="6" width="68" height="68" rx="6" fill="#a83329" opacity="0.92" />
+              <rect x="10" y="10" width="60" height="60" rx="4" fill="none" stroke="#f3e6cf" strokeWidth="2" />
+              <text
+                x="40"
+                y="33"
+                textAnchor="middle"
+                fontFamily="Nanum Myeongjo, serif"
+                fontWeight="800"
+                fontSize="18"
+                fill="#f3e6cf"
+              >
+                王
+              </text>
+              <text
+                x="40"
+                y="58"
+                textAnchor="middle"
+                fontFamily="Nanum Myeongjo, serif"
+                fontWeight="800"
+                fontSize="18"
+                fill="#f3e6cf"
+              >
+                守
+              </text>
+            </g>
+          </svg>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📰 포스터 카드
+    // ========================================
+    function PosterCard() {
+      return (
+        <article
+          className="relative w-full max-w-[460px] sm:max-w-[520px] md:max-w-[560px] aspect-[2/3] rounded-[14px] overflow-hidden vignette clay-sway"
+          style={{ background: 'var(--cream)' }}
+        >
+          {/* 상단 메타 라인 */}
+          <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-5 pt-4 text-[10px] sm:text-[11px] tracking-[0.25em] credits-line text-[#5a3a22]">
+            <span>전체관람가 · 사극 드라마</span>
+            <span>NO. 2026 — 02</span>
+          </div>
+
+          {/* 일러스트 영역 (전체) */}
+          <div className="absolute inset-0 z-0">
+            <PosterScene />
+          </div>
+
+          {/* 그레인 오버레이 */}
+          <div className="grain-overlay z-10" />
+
+          {/* 하단 텍스트 영역 (반투명 페이퍼 패널) */}
+          <div className="absolute bottom-0 inset-x-0 z-20 px-5 sm:px-7 pb-5 sm:pb-7 pt-24 bg-gradient-to-t from-[#f3e6cf] via-[#f3e6cf]/85 to-transparent">
+            {/* 카피라인 */}
+            <p className="copyline text-[12px] sm:text-[13px] text-[#5a3a22]/85 mb-2 leading-relaxed">
+              산골 촌장의 집에 폐위된 왕이 찾아왔다.
+            </p>
+
+            {/* 영문 부제 */}
+            <p className="seal text-[10px] sm:text-[11px] text-[#8e2a23]/80 mb-1">
+              THE KING&rsquo;S WARDEN
+            </p>
+
+            {/* 제목 */}
+            <h1 className="clay-title text-[34px] sm:text-[42px] md:text-[48px] leading-[1.05] mb-3">
+              왕과 사는 남자
+            </h1>
+
+            {/* 크레딧 */}
+            <div className="flex items-end justify-between gap-3">
+              <div className="text-[10px] sm:text-[11px] credits-line text-[#3a2418]/85 leading-relaxed">
+                <p className="font-semibold">감독 장항준</p>
+                <p>출연 유해진 · 박지훈 · 유지태 · 전미도</p>
+                <p className="mt-1 text-[#8e2a23] tracking-[0.3em] font-bold">2026. 02. 04 OPEN</p>
+              </div>
+              <Seal className="-mb-1" />
+            </div>
+          </div>
+        </article>
+      );
+    }
+
+    // ========================================
+    // 🧾 메타 영역 (포스터 옆/아래)
+    // ========================================
+    function MetaPanel() {
+      const facts = [
+        { k: '제목', v: '왕과 사는 남자' },
+        { k: 'Title', v: "THE KING'S WARDEN" },
+        { k: '감독', v: '장항준' },
+        { k: '출연', v: '유해진 · 박지훈 · 유지태 · 전미도' },
+        { k: '개봉', v: '2026. 02. 04' },
+        { k: '관객', v: '1,628만 명' },
+        { k: '배경', v: '조선 세조 찬위 이후 · 강원도 영월 청령포' },
+      ];
+
+      return (
+        <aside className="w-full max-w-[460px] sm:max-w-[520px] md:max-w-[420px] text-[#3a2418]">
+          <div className="mb-6">
+            <p className="seal text-[11px] text-[#8e2a23]/80 mb-1">A CLAY-SCULPTED POSTER</p>
+            <h2 className="clay-title text-2xl sm:text-3xl leading-tight mb-2">
+              왕과 함께 살아낸<br/>한 계절의 기록
+            </h2>
+            <p className="copyline text-[13px] sm:text-[14px] leading-relaxed text-[#3a2418]/85">
+              조선의 운명이 한 칸짜리 초가집에 머물던 그 겨울.
+              산골 호장 <b>엄흥도</b>의 지붕 아래, 폐위된 어린 왕 <b>이홍위</b>가
+              짧고도 깊은 시간을 보낸다.
+            </p>
+          </div>
+
+          <dl className="border-t border-[#3a2418]/20">
+            {facts.map((f, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-[80px_1fr] gap-3 py-2.5 border-b border-[#3a2418]/15 text-[12px] sm:text-[13px]"
+              >
+                <dt className="seal text-[#8e2a23]/80">{f.k}</dt>
+                <dd className="font-medium">{f.v}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-6 flex items-center gap-3 text-[11px] credits-line text-[#3a2418]/70">
+            <span className="inline-block w-8 h-px bg-[#3a2418]/40" />
+            <span>CLAY EDITION · HAND-SCULPTED VISUAL</span>
+          </div>
+        </aside>
+      );
+    }
+
+    // ========================================
+    // 🚀 App
+    // ========================================
+    function App() {
+      return (
+        <main className="relative z-[2] min-h-screen flex flex-col items-center px-4 sm:px-6 py-10 sm:py-14">
+          {/* 헤더 */}
+          <header className="w-full max-w-6xl mb-8 sm:mb-12 flex items-center justify-between">
+            <div className="seal text-[11px] sm:text-[12px] text-[#5a3a22]/80">
+              CINEMA · POSTER · 2026
+            </div>
+            <div className="seal text-[11px] sm:text-[12px] text-[#8e2a23]/80">
+              王守 · CLAY ED.
+            </div>
+          </header>
+
+          {/* 본문 — 포스터 + 메타 */}
+          <section className="w-full max-w-6xl flex flex-col md:flex-row items-start justify-center gap-10 md:gap-14">
+            <div className="flex-1 flex justify-center">
+              <PosterCard />
+            </div>
+            <div className="flex-1 flex md:justify-start justify-center md:pt-6">
+              <MetaPanel />
+            </div>
+          </section>
+
+          {/* 푸터 */}
+          <footer className="mt-14 sm:mt-20 mb-2 text-[11px] credits-line text-[#3a2418]/70 text-center max-w-2xl">
+            <p>왕과 사는 남자 · THE KING&rsquo;S WARDEN · 2026 · 장항준 · 1,628만 관객</p>
+            <p className="mt-1 opacity-70">
+              본 포스터는 가상 비주얼 시안이며, 모든 일러스트는 인라인 SVG로 손수 빚어졌습니다.
+            </p>
+          </footer>
+        </main>
+      );
+    }
+
+    // ========================================
+    // Render
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

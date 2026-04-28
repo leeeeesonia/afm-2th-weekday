@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUCID LINE BEHIND | LUCY 부산 막콘 비하인드 썸네일</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&family=Archivo+Black&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #0a0a0c;
+      color: #f5f5f5;
+    }
+
+    /* ============================
+       Fonts
+       ============================ */
+    .font-anton { font-family: 'Anton', 'Bebas Neue', sans-serif; letter-spacing: 0.005em; }
+    .font-bebas { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.04em; }
+    .font-archivo { font-family: 'Archivo Black', sans-serif; letter-spacing: -0.01em; }
+    .font-bhs { font-family: 'Black Han Sans', sans-serif; letter-spacing: -0.02em; }
+    .font-noto-black { font-family: 'Noto Sans KR', sans-serif; font-weight: 900; letter-spacing: -0.045em; }
+
+    /* ============================
+       1920x1080 fixed canvas
+       ============================ */
+    .thumb-canvas {
+      width: 1920px;
+      height: 1080px;
+      position: relative;
+      overflow: hidden;
+      flex: none;
+      background: #050505;
+    }
+
+    /* 50% preview wrapper (960x540) */
+    .scale-wrap-large {
+      width: 960px;
+      height: 540px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    }
+    .scale-wrap-large .thumb-canvas {
+      transform: scale(0.5);
+      transform-origin: top left;
+    }
+
+    /* 300x168.75 micro preview */
+    .scale-wrap-tiny {
+      width: 300px;
+      height: 168.75px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.55);
+    }
+    .scale-wrap-tiny .thumb-canvas {
+      transform: scale(0.15625);
+      transform-origin: top left;
+    }
+
+    /* ============================
+       Grain / Noise texture
+       ============================ */
+    .grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.18;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    }
+
+    /* Stroke text (outline-only highlight) */
+    .text-stroke-yellow {
+      -webkit-text-stroke: 6px #FFE600;
+      color: transparent;
+    }
+
+    /* Tilted strip */
+    .tilt-strip {
+      transform: rotate(-3deg);
+      transform-origin: center;
+    }
+
+    /* Soft red glow for the keyword */
+    .glow-red {
+      text-shadow:
+        0 0 18px rgba(255, 42, 42, 0.55),
+        0 0 60px rgba(255, 42, 42, 0.35);
+    }
+    .glow-yellow {
+      text-shadow:
+        0 0 14px rgba(255, 230, 0, 0.55),
+        0 0 48px rgba(255, 230, 0, 0.28);
+    }
+
+    /* keep images crisp on transform */
+    img { image-rendering: -webkit-optimize-contrast; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useMemo } = React;
+
+    // ========================================
+    // Asset paths
+    // ========================================
+    const STILLS = {
+      hero:  './stills/03-lucy-nate-1.jpg',       // 3-panel close-up (members + live)
+      wide:  './stills/04-lucy-nate-2.jpg',       // wide stage (atmosphere)
+      poster:'./stills/02-lucy-three-members.jpg' // 3-member poster
+    };
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function MetaChip({ children, className = '' }) {
+      return (
+        <div className={`inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/25 ${className}`}>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#FFE600] shadow-[0_0_12px_rgba(255,230,0,0.9)]" />
+          <span className="font-bebas text-white tracking-[0.18em] text-[28px] leading-none">{children}</span>
+        </div>
+      );
+    }
+
+    function CornerTick({ position }) {
+      // 코너 장식 - 모서리 L자
+      const map = {
+        tl: 'top-10 left-10 border-t-4 border-l-4',
+        tr: 'top-10 right-10 border-t-4 border-r-4',
+        bl: 'bottom-10 left-10 border-b-4 border-l-4',
+        br: 'bottom-10 right-10 border-b-4 border-r-4',
+      };
+      return <div className={`absolute w-14 h-14 border-white/70 ${map[position]}`} />;
+    }
+
+    // ========================================
+    // 🖼️ Thumbnail Canvas (1920x1080) — single source of truth
+    // ========================================
+    function ThumbCanvas() {
+      return (
+        <div className="thumb-canvas">
+
+          {/* ---------- Background layer: wide stage shot, dimmed ---------- */}
+          <img
+            src={STILLS.wide}
+            alt="LUCY busan stage wide"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'brightness(0.45) saturate(1.15) contrast(1.05)' }}
+          />
+          {/* Color wash */}
+          <div className="absolute inset-0"
+               style={{ background: 'radial-gradient(ellipse at 30% 40%, rgba(80, 0, 30, 0.35) 0%, rgba(0,0,0,0.0) 60%)' }} />
+
+          {/* ---------- Hero photo: 3-panel close-up, occupies left ~60% ---------- */}
+          <div className="absolute top-0 left-0 h-full" style={{ width: '1180px' }}>
+            <img
+              src={STILLS.hero}
+              alt="LUCY 3 members live close-up"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: 'center 35%' }}
+            />
+            {/* Right-edge fade so hero blends into right column */}
+            <div className="absolute inset-y-0 right-0 w-[420px]"
+                 style={{ background: 'linear-gradient(to right, rgba(5,5,5,0) 0%, rgba(5,5,5,0.55) 55%, rgba(5,5,5,0.98) 100%)' }} />
+            {/* Bottom darken for caption */}
+            <div className="absolute inset-x-0 bottom-0 h-[300px]"
+                 style={{ background: 'linear-gradient(to bottom, rgba(5,5,5,0) 0%, rgba(5,5,5,0.85) 100%)' }} />
+            {/* Top darken for chip */}
+            <div className="absolute inset-x-0 top-0 h-[260px]"
+                 style={{ background: 'linear-gradient(to bottom, rgba(5,5,5,0.85) 0%, rgba(5,5,5,0) 100%)' }} />
+          </div>
+
+          {/* ---------- Right shade panel for headline readability ---------- */}
+          <div className="absolute top-0 right-0 h-full" style={{ width: '900px' }}>
+            <div className="absolute inset-0"
+                 style={{ background: 'linear-gradient(to right, rgba(5,5,5,0.65) 0%, rgba(5,5,5,0.92) 35%, rgba(10,10,12,0.96) 100%)' }} />
+            {/* subtle red light leak */}
+            <div className="absolute -top-20 -right-20 w-[600px] h-[600px] rounded-full"
+                 style={{ background: 'radial-gradient(circle, rgba(255,42,42,0.22) 0%, rgba(255,42,42,0) 70%)' }} />
+          </div>
+
+          {/* ---------- Top-left meta chip ---------- */}
+          <div className="absolute top-12 left-12 z-30">
+            <MetaChip>8TH CONCERT &nbsp;·&nbsp; BUSAN FINAL</MetaChip>
+          </div>
+
+          {/* ---------- Top-right tiny LUCY mark ---------- */}
+          <div className="absolute top-12 right-14 z-30 flex items-center gap-4">
+            <div className="font-anton text-white text-[44px] leading-none tracking-[0.08em]">LUCY</div>
+            <div className="w-[2px] h-9 bg-white/40" />
+            <div className="font-bebas text-white/70 text-[22px] tracking-[0.22em] leading-none">BEHIND&nbsp;EP.07</div>
+          </div>
+
+          {/* ---------- Tilted red strip behind headline ---------- */}
+          <div className="absolute z-10"
+               style={{ top: '370px', right: '-60px', width: '1100px', height: '92px',
+                        transform: 'rotate(-3deg)',
+                        background: 'linear-gradient(90deg, rgba(255,42,42,0) 0%, #FF2A2A 30%, #FF2A2A 75%, rgba(255,42,42,0) 100%)',
+                        boxShadow: '0 0 60px rgba(255,42,42,0.45)' }} />
+
+          {/* ---------- MAIN HEADLINE ---------- */}
+          <div className="absolute z-20" style={{ top: '230px', right: '70px', width: '1180px', textAlign: 'right' }}>
+            {/* Eyebrow */}
+            <div className="font-bebas text-white/75 text-[40px] tracking-[0.4em] leading-none mb-6">
+              LUCY · 8TH CONCERT
+            </div>
+
+            {/* "LUCID LINE" */}
+            <div className="font-anton text-white leading-[0.92]"
+                 style={{ fontSize: '218px', letterSpacing: '0.005em' }}>
+              LUCID LINE
+            </div>
+
+            {/* "BEHIND" with yellow accent */}
+            <div className="font-anton leading-[0.92] glow-yellow"
+                 style={{ fontSize: '230px', color: '#FFE600', letterSpacing: '0.01em', marginTop: '-8px' }}>
+              BEHIND
+            </div>
+
+            {/* Korean subhead */}
+            <div className="flex items-center justify-end gap-6 mt-8">
+              <div className="h-[3px] w-32 bg-white/60" />
+              <div className="font-bhs text-white leading-[1] whitespace-nowrap"
+                   style={{ fontSize: '92px' }}>
+                <span style={{ color: '#FFE600' }} className="glow-yellow">마지막</span>
+                <span> 콘서트에서 </span>
+                <span style={{ color: '#FFE600' }} className="glow-yellow">생긴 일</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ---------- Bottom-left member tag bar ---------- */}
+          <div className="absolute bottom-12 left-12 z-30 flex items-end gap-5">
+            <div className="bg-[#FFE600] text-black px-5 py-3 font-archivo text-[34px] leading-none tracking-tight">
+              REC<span className="text-[#FF2A2A]">●</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="font-bebas text-white text-[34px] tracking-[0.22em] leading-none">
+                CHOI&nbsp;·&nbsp;SHIN&nbsp;·&nbsp;CHO
+              </div>
+              <div className="font-noto-black text-white/65 text-[22px] leading-none">
+                최상엽 · 신예찬 · 조원상 · 부산 막콘 비하인드
+              </div>
+            </div>
+          </div>
+
+          {/* ---------- Bottom-right venue / date meta ---------- */}
+          <div className="absolute bottom-12 right-12 z-30 text-right">
+            <div className="font-bebas text-white text-[40px] leading-none tracking-[0.18em]">
+              2025.11.30
+            </div>
+            <div className="font-bebas text-[#FFE600] text-[26px] leading-none tracking-[0.32em] mt-2 glow-yellow">
+              KBS&nbsp;BUSAN&nbsp;HALL
+            </div>
+            <div className="font-noto-black text-white/55 text-[20px] leading-none tracking-tight mt-2">
+              LUCID LINE · BUSAN FINAL NIGHT
+            </div>
+          </div>
+
+          {/* ---------- Side ticker (left vertical text on hero) ---------- */}
+          <div className="absolute z-30"
+               style={{ left: '-66px', top: '440px', transform: 'rotate(-90deg)', transformOrigin: 'left top' }}>
+            <div className="font-bebas text-white/55 text-[28px] tracking-[0.55em]">
+              ENCORE&nbsp;·&nbsp;BACKSTAGE&nbsp;·&nbsp;UNSEEN
+            </div>
+          </div>
+
+          {/* ---------- Corner ticks ---------- */}
+          <CornerTick position="tl" />
+          <CornerTick position="tr" />
+          <CornerTick position="bl" />
+          <CornerTick position="br" />
+
+          {/* ---------- Grain overlay (top-most) ---------- */}
+          <div className="grain" />
+
+          {/* ---------- Vignette ---------- */}
+          <div className="absolute inset-0 pointer-events-none"
+               style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)' }} />
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🧩 Preview wrappers
+    // ========================================
+    function LargePreview() {
+      return (
+        <div className="scale-wrap-large">
+          <ThumbCanvas />
+        </div>
+      );
+    }
+
+    function TinyPreview() {
+      return (
+        <div className="scale-wrap-tiny">
+          <ThumbCanvas />
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Page
+    // ========================================
+    function App() {
+      return (
+        <div className="min-h-screen w-full px-6 sm:px-10 py-10">
+          {/* Header */}
+          <header className="max-w-[1280px] mx-auto mb-10">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-2 h-2 rounded-full bg-[#FFE600]" />
+              <p className="font-bebas tracking-[0.32em] text-white/65 text-sm">YOUTUBE THUMBNAIL · 1920×1080</p>
+            </div>
+            <h1 className="font-noto-black text-3xl sm:text-4xl text-white">
+              LUCY <span className="text-[#FFE600]">‘LUCID LINE’</span> 부산 막콘 비하인드
+            </h1>
+            <p className="text-white/55 text-sm sm:text-base mt-2">
+              실제 콘서트 스틸로 합성한 썸네일. 1920×1080 본 사이즈와 300×170 미리보기를 함께 표시합니다.
+            </p>
+          </header>
+
+          {/* Layout: large preview + meta */}
+          <section className="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-[960px_1fr] gap-8 items-start">
+            {/* Large preview */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <span className="font-bebas tracking-[0.28em] text-white/55 text-xs">PREVIEW · 50% (960×540)</span>
+                <span className="font-bebas tracking-[0.28em] text-white/35 text-xs">RENDERED AT 1920×1080</span>
+              </div>
+              <LargePreview />
+            </div>
+
+            {/* Side panel: tiny + notes */}
+            <aside className="flex flex-col gap-8">
+              <div>
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="font-bebas tracking-[0.28em] text-white/55 text-xs">FEED PREVIEW · 300×170</span>
+                </div>
+                <TinyPreview />
+                <p className="text-white/45 text-xs mt-3 leading-relaxed">
+                  유튜브 검색·관련영상 노출 시 실제 표시 크기. 제목 가독성 확인용.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+                <div className="font-bebas tracking-[0.24em] text-[#FFE600] text-xs mb-3">PALETTE</div>
+                <div className="flex gap-2 mb-4">
+                  <Swatch hex="#050505" name="Stage Black" />
+                  <Swatch hex="#FFE600" name="Accent" />
+                  <Swatch hex="#FF2A2A" name="Live Red" />
+                  <Swatch hex="#F5F5F5" name="Off White" />
+                </div>
+                <ul className="text-white/65 text-sm leading-relaxed list-disc pl-5 space-y-1">
+                  <li>메인 사진: <span className="text-white">03 (3분할 라이브 클로즈업)</span></li>
+                  <li>배경 사진: <span className="text-white">04 (와이드 무대)</span> · 어둡게</li>
+                  <li>강조색: <span className="text-[#FFE600]">노랑 #FFE600</span> + 빨강 보조</li>
+                  <li>폰트: Anton(영문 임팩트) + Black Han Sans(한글)</li>
+                </ul>
+              </div>
+            </aside>
+          </section>
+        </div>
+      );
+    }
+
+    function Swatch({ hex, name }) {
+      return (
+        <div className="flex flex-col items-start gap-1">
+          <div className="w-12 h-12 rounded-md border border-white/15" style={{ background: hex }} />
+          <div className="font-bebas tracking-[0.18em] text-[10px] text-white/55">{name}</div>
+          <div className="font-mono text-[10px] text-white/35">{hex}</div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 Render
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
