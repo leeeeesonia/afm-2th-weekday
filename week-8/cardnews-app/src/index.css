@@ -1,0 +1,217 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Meta — chrome 토큰 */
+  --meta-canvas: #ffffff;
+  --meta-surface: #f1f4f7;
+  --meta-ink: #1c1e21;
+  --meta-ink-deep: #0a1317;
+  --meta-charcoal: #444950;
+  --meta-steel: #5d6c7b;
+  --meta-stone: #8595a4;
+  --meta-hairline: #ced0d4;
+  --meta-hairline-soft: #dee3e9;
+  --meta-primary: #0064e0;
+
+  /* CN — 카드 콘텐츠 브랜드 자산 */
+  --cn-black: #000000;
+  --cn-white: #ffffff;
+  --cn-neon: #aaff00;
+  --cn-lemon: #fffaba;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: Montserrat, 'Pretendard Variable', Pretendard, Helvetica, Arial, system-ui, sans-serif;
+  font-feature-settings: 'ss01', 'ss02';
+  background: var(--meta-canvas);
+  color: var(--meta-ink-deep);
+  letter-spacing: -0.14px;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Type roles — Meta hierarchy */
+.t-hero { font-family: Montserrat, 'Pretendard Variable', sans-serif; font-size: 64px; font-weight: 500; line-height: 1.16; letter-spacing: -0.5px; }
+.t-display { font-family: Montserrat, 'Pretendard Variable', sans-serif; font-size: 48px; font-weight: 500; line-height: 1.17; letter-spacing: -0.5px; }
+.t-h-lg { font-size: 36px; font-weight: 500; line-height: 1.28; }
+.t-h-md { font-size: 28px; font-weight: 300; line-height: 1.21; }
+.t-h-sm { font-size: 24px; font-weight: 500; line-height: 1.25; }
+.t-st-lg { font-size: 18px; font-weight: 700; line-height: 1.44; }
+.t-st-md { font-size: 18px; font-weight: 400; line-height: 1.44; }
+.t-body { font-size: 16px; font-weight: 400; line-height: 1.5; letter-spacing: -0.16px; }
+.t-body-b { font-size: 16px; font-weight: 700; line-height: 1.5; letter-spacing: -0.16px; }
+.t-body-s { font-size: 14px; font-weight: 400; line-height: 1.43; letter-spacing: -0.14px; }
+.t-body-s-b { font-size: 14px; font-weight: 700; line-height: 1.43; letter-spacing: -0.14px; }
+.t-cap-b { font-size: 12px; font-weight: 700; line-height: 1.33; }
+.t-cap { font-size: 12px; font-weight: 400; line-height: 1.33; }
+
+/* Meta — buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 100px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.43;
+  letter-spacing: -0.14px;
+  border: 2px solid transparent;
+  transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out, transform 150ms ease-out;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:focus-visible { outline: 2px solid var(--meta-primary); outline-offset: 2px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--meta-ink-deep); color: #fff; padding: 12px 28px; }
+.btn-primary:hover:not(:disabled) { background: var(--meta-charcoal); }
+.btn-buy { background: var(--meta-primary); color: #fff; padding: 12px 28px; }
+.btn-buy:hover:not(:disabled) { background: #0457cb; }
+.btn-secondary { background: transparent; color: var(--meta-ink-deep); border-color: var(--meta-ink-deep); padding: 10px 26px; }
+.btn-secondary:hover:not(:disabled) { background: var(--meta-surface); }
+.btn-ghost { background: transparent; color: var(--meta-ink-deep); border-color: rgba(10, 19, 23, 0.12); padding: 8px 20px; }
+.btn-ghost:hover:not(:disabled) { background: var(--meta-surface); }
+.btn-pill { background: #fff; color: var(--meta-ink); border-color: var(--meta-hairline); padding: 8px 16px; }
+.btn-pill.is-active { background: var(--meta-ink-deep); color: #fff; border-color: var(--meta-ink-deep); }
+.btn-icon-circle {
+  width: 40px; height: 40px; padding: 0; border-radius: 9999px;
+  background: #fff; color: var(--meta-ink); border-color: var(--meta-hairline);
+}
+.btn-icon-circle:hover:not(:disabled) { background: var(--meta-surface); }
+
+/* Meta — surfaces */
+.surface-card {
+  background: var(--meta-canvas);
+  border: 1px solid var(--meta-hairline-soft);
+  border-radius: 32px;
+}
+.surface-card-sm {
+  background: var(--meta-canvas);
+  border: 1px solid var(--meta-hairline-soft);
+  border-radius: 16px;
+}
+.surface-promo {
+  background: var(--meta-ink-deep);
+  color: #fff;
+  border-radius: 32px;
+}
+.hairline { border-color: var(--meta-hairline-soft); }
+.hairline-strong { border-color: var(--meta-hairline); }
+
+/* Inputs */
+.field {
+  background: #fff;
+  border: 1px solid var(--meta-hairline);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.43;
+  letter-spacing: -0.14px;
+  color: var(--meta-ink-deep);
+  width: 100%;
+  font-family: inherit;
+}
+.field:focus { border-color: var(--meta-fb-blue, #1876f2); border-width: 2px; padding: 9px 11px; outline: none; }
+textarea.field { resize: vertical; line-height: 1.55; padding: 12px; }
+
+/* Pill nav for tabs */
+.pill-tab {
+  background: #fff; color: var(--meta-ink);
+  border: 1px solid var(--meta-hairline);
+  border-radius: 100px;
+  padding: 8px 18px;
+  font-size: 14px; font-weight: 700; line-height: 1.43; letter-spacing: -0.14px;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms, border-color 150ms;
+}
+.pill-tab.is-active { background: var(--meta-ink-deep); color: #fff; border-color: var(--meta-ink-deep); }
+.pill-tab:hover:not(.is-active) { background: var(--meta-surface); }
+
+/* Badge */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 100px;
+  padding: 4px 10px;
+  font-size: 12px; font-weight: 700; line-height: 1.33;
+}
+.badge-promo { background: var(--meta-warning, #f2a918); color: var(--meta-ink-deep); }
+.badge-success { background: var(--meta-success, #31a24c); color: #fff; }
+
+/* Eyebrow / mono labels — preserved for in-card content */
+.eyebrow {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.mono {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* No-scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* Editable text — inplace editing on canvas */
+[data-cn-field] { cursor: text; transition: outline-color 100ms; outline: 2px solid transparent; outline-offset: 4px; border-radius: 2px; }
+[data-cn-field]:hover:not([contenteditable="true"]) { outline-color: rgba(0, 100, 224, 0.35); }
+[data-cn-field][contenteditable="true"] { outline-color: var(--meta-primary); outline-offset: 4px; background-color: rgba(0, 100, 224, 0.05); cursor: text; }
+[data-cn-field][contenteditable="true"]:focus { outline-color: var(--meta-primary); }
+
+/* 인라인 형광펜 — Cmd+Shift+H로 토글, 데이터 모델은 <mark class="cn-hl"> */
+mark.cn-hl,
+[data-cn-field] mark {
+  background: linear-gradient(transparent 62%, var(--cn-neon) 62%);
+  color: inherit;
+  padding: 0 2px;
+}
+/* 본문 부분 볼드 — Cmd+B (execCommand가 strong/b 둘 다 생성 가능) */
+[data-cn-field] b,
+[data-cn-field] strong {
+  font-weight: 800;
+}
+
+/* Floating format toolbar */
+.cn-format-bar {
+  position: fixed;
+  display: inline-flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--meta-ink-deep);
+  border-radius: 100px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 50;
+  transform: translateY(-100%);
+  pointer-events: auto;
+}
+.cn-format-bar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cn-format-bar button:hover { background: rgba(255,255,255,0.1); }
+.cn-format-bar button.is-active { background: var(--cn-neon); color: #000; }

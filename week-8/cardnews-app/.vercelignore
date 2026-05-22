@@ -1,0 +1,17 @@
+# dev only
+dev-server.js
+.env
+.env.*
+!.env.example
+
+# build artifacts
+node_modules
+dist
+
+# editor
+.DS_Store
+.vscode
+
+# docs (build에 포함 안 함)
+DESIGN.md
+schema.sql

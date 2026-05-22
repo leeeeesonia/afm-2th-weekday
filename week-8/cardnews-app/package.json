@@ -1,0 +1,36 @@
+{
+  "name": "cardnews-app",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Novound 카드뉴스 자동화 — 5종 템플릿 + 사용자 입력 → PNG/JPG 자동 생성",
+  "scripts": {
+    "dev": "vite",
+    "init-db": "node scripts/init-db.js",
+    "server": "node dev-server.js",
+    "dev:all": "concurrently -n vite,api -c blue,green \"npm:dev\" \"npm:server\"",
+    "build": "vite build",
+    "preview": "vite preview --port 5174"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "file-saver": "^2.0.5",
+    "html-to-image": "^1.11.13",
+    "immer": "^10.1.1",
+    "jszip": "^3.10.1",
+    "pg": "^8.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "vite": "^5.4.11"
+  }
+}
