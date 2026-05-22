@@ -451,16 +451,16 @@ export const useProjectStore = create(
       })),
       clearSelection: () => set({ selectedBlockIds: [] }),
 
-      // 모든 페이지 일괄 props 변경 (예: 워드마크 전역 변경)
+      // 모든 페이지 일괄 props 변경 (예: 워드마크 전역 변경, 전체 배경 사진 일괄)
+      // 키가 없는 페이지에도 생성해서 set한다. (bgPhoto처럼 universal 필드 일괄 적용 케이스를 지원)
       applyToAllPages: (key, value) => {
         get()._pushHistory(`일괄 · ${key}`);
         set(produce((s) => {
           const p = s.projects.find((x) => x.id === s.activeProjectId);
           if (!p) return;
           for (const page of p.pages) {
-            if (page.props && Object.prototype.hasOwnProperty.call(page.props, key)) {
-              page.props[key] = value;
-            }
+            if (!page.props) page.props = {};
+            page.props[key] = value;
           }
           p.updatedAt = Date.now();
           s.lastSavedAt = Date.now();

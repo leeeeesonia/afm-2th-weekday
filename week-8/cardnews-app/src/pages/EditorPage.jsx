@@ -7,6 +7,7 @@ import { Toolbar } from '../editor/Toolbar.jsx';
 import { Sidebar } from '../editor/Sidebar.jsx';
 import { PageThumbStrip } from '../editor/PageThumbStrip.jsx';
 import { Canvas } from '../editor/Canvas.jsx';
+import { BgPhotoContext } from '../design/primitives.jsx';
 import { BlockRenderer } from '../editor/BlockRenderer.jsx';
 import { useKeyboard } from '../editor/useKeyboard.js';
 
@@ -153,7 +154,9 @@ function GridView({ project, previewMode }) {
                       position: 'relative',
                     }}
                   >
-                    <Comp {...props} />
+                    <BgPhotoContext.Provider value={page.props.bgPhoto || null}>
+                      <Comp {...props} />
+                    </BgPhotoContext.Provider>
                     {page.overlays?.length > 0 && (
                       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                         {page.overlays.map((b) => (

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { CARD_W, CARD_H } from '../design/tokens.js';
 import { getVariant, getTemplate } from '../templates/registry.js';
+import { BgPhotoContext } from '../design/primitives.jsx';
 import { BlockRenderer } from './BlockRenderer.jsx';
 
 function OverlayPreview({ overlays }) {
@@ -58,7 +59,9 @@ export function PageThumbStrip({ project }) {
                   <div className="relative overflow-hidden" style={{ paddingBottom: `${(CARD_H / CARD_W) * 100}%` }}>
                     <div style={{ position: 'absolute', inset: 0 }}>
                       <div style={{ width: CARD_W, height: CARD_H, transform: 'scale(0.18)', transformOrigin: 'top left', position: 'relative' }}>
-                        <Comp {...props} />
+                        <BgPhotoContext.Provider value={page.props.bgPhoto || null}>
+                          <Comp {...props} />
+                        </BgPhotoContext.Provider>
                         <OverlayPreview overlays={page.overlays} />
                       </div>
                     </div>

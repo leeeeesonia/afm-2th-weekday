@@ -72,6 +72,14 @@ export function Sidebar({ project, page, pageIndex }) {
             <p className="t-cap text-meta-steel">
               💡 슬라이드 위 텍스트를 클릭해도 바로 편집할 수 있어요.
             </p>
+            {/* 모든 variant에 자동 주입: 페이지 풀이미지 배경 — 비어있으면 흰 배경, 채우면 사진. */}
+            <FieldEditor
+              field={{ key: 'bgPhoto', label: '페이지 풀이미지 배경', type: 'image' }}
+              value={page.props.bgPhoto ?? ''}
+              onChange={(v) => updatePageProp(pageIndex, 'bgPhoto', v)}
+              onCommit={(v) => updatePageProp(pageIndex, 'bgPhoto', v, { commit: true })}
+              onApplyAll={() => applyToAllPages('bgPhoto', page.props.bgPhoto)}
+            />
             {(variant.fields ?? []).map((f) => (
               <FieldEditor
                 key={f.key}
