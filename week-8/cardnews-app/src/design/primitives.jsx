@@ -14,6 +14,7 @@ export function useCnTheme() {
 }
 
 /* ─────────── BgPhoto Context — Canvas가 셋팅, Card가 소비해서 풀이미지 배경 자동 적용 ─────────── */
+// { src, scale, position } 객체. src 없으면 null.
 export const BgPhotoContext = React.createContext(null);
 // '검정' 계열 색상이면 true → 다크 모드에서 흰색으로 자동 전환됨.
 // #fff/#FFFFFF 같은 흰색이거나 rgba 반투명 등은 사진 위 흰글씨이므로 그대로.
@@ -40,13 +41,18 @@ function richChildren(children) {
 
 /* ─────────── Card ─────────── */
 // themeMode='light'|'dark' — 카드 배경/기본 텍스트색을 결정. ThemeContext로 자식에 전달.
-// bgPhoto — 페이지 전체에 깔리는 풀이미지 배경. set이면 흰 배경 대신 사진이 깔림.
+// bgPhoto — { src, scale, position } 객체. src 있으면 풀이미지 배경 깔림.
+//   • scale: 1.0~4.0 — 확대 배율
+//   • position: 'x% y%' 또는 'center'
 // 두 prop 모두 미지정 시 부모 Provider(Canvas에서 set)에서 상속.
 export function Card({ children, themeMode: explicitTheme, bgPhoto: explicitBg, style, ...rest }) {
   const inheritedTheme = React.useContext(ThemeContext);
   const inheritedBg = React.useContext(BgPhotoContext);
   const mode = explicitTheme || inheritedTheme || 'light';
-  const bgPhoto = explicitBg !== undefined ? explicitBg : inheritedBg;
+  const bg = explicitBg !== undefined ? explicitBg : inheritedBg;
+  // bg는 string(src) 또는 {src,scale,position} 객체. 호환성 위해 둘 다 처리.
+  const bgObj = typeof bg === 'string' ? { src: bg, scale: 1, position: 'center' } : (bg || {});
+  const bgSrc = bgObj.src || '';
   const themeBg = mode === 'dark' ? CN_THEMES.dark.bg : CN_THEMES.light.bg;
   return (
     <ThemeContext.Provider value={mode}>
@@ -57,14 +63,14 @@ export function Card({ children, themeMode: explicitTheme, bgPhoto: explicitBg, 
           width: CARD_W,
           height: CARD_H,
           // bgPhoto가 있으면 카드 자체 배경은 비워서 사진이 보이게.
-          background: bgPhoto ? 'transparent' : themeBg,
+          background: bgSrc ? 'transparent' : themeBg,
           overflow: 'hidden',
           ...style,
         }}
         {...rest}
       >
         {/* bgPhoto 레이어 — 모든 children 뒤에 깔림. variant가 자체 FullBleedPhoto를 가지면 그 위에 덮어씌워짐. */}
-        {bgPhoto ? <FullBleedPhoto src={bgPhoto} /> : null}
+        {bgSrc ? <FullBleedPhoto src={bgSrc} scale={bgObj.scale} position={bgObj.position} /> : null}
         {children}
       </div>
     </ThemeContext.Provider>
@@ -349,10 +355,11 @@ export function PhotoBox({
 
 /* ─────────── FullBleedPhoto + scrim ─────────── */
 // src 비어있으면 transparent — 카드의 bgPhoto / 테마 bg가 그대로 보임.
-// (이전 #3a3a3a 폴백은 cover에 사진이 없을 때 빈 자리로 깔리던 디버그 색이었는데,
-//  page-level bgPhoto 기능이 추가된 뒤로는 사용자가 원하는 배경을 가렸음 → 제거.)
-export function FullBleedPhoto({ src, position = 'center' }) {
+// scale: 1.0~4.0 — 확대 배율 (>1이면 image가 카드 영역보다 커져서 crop 자유)
+// position: 'x% y%' 또는 'center' — backgroundPosition + transform-origin 동기.
+export function FullBleedPhoto({ src, position = 'center', scale = 1 }) {
   if (!src) return null;
+  const s = typeof scale === 'number' && scale >= 1 ? scale : 1;
   return (
     <div
       style={{
@@ -361,6 +368,8 @@ export function FullBleedPhoto({ src, position = 'center' }) {
         backgroundImage: `url(${src})`,
         backgroundSize: 'cover',
         backgroundPosition: position,
+        transform: s > 1 ? `scale(${s})` : undefined,
+        transformOrigin: s > 1 ? position : undefined,
       }}
     />
   );

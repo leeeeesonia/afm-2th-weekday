@@ -154,7 +154,7 @@ function GridView({ project, previewMode }) {
                       position: 'relative',
                     }}
                   >
-                    <BgPhotoContext.Provider value={page.props.bgPhoto || null}>
+                    <BgPhotoContext.Provider value={page.props.bgPhoto ? { src: page.props.bgPhoto, scale: page.props.bgPhotoScale || 1, position: page.props.bgPhotoPosition || 'center' } : null}>
                       <Comp {...props} />
                     </BgPhotoContext.Provider>
                     {page.overlays?.length > 0 && (

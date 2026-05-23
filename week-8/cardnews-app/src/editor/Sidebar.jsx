@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { getTemplate, getVariant, TEMPLATES } from '../templates/registry.js';
 import { CARD_W, CARD_H } from '../design/tokens.js';
+import { uploadImage } from '../lib/uploadImage.js';
 
 // HTML → plain text (br → \n, 나머지 태그 제거)
 function stripHtml(html) {
@@ -72,13 +73,18 @@ export function Sidebar({ project, page, pageIndex }) {
             <p className="t-cap text-meta-steel">
               💡 슬라이드 위 텍스트를 클릭해도 바로 편집할 수 있어요.
             </p>
-            {/* 모든 variant에 자동 주입: 페이지 풀이미지 배경 — 비어있으면 흰 배경, 채우면 사진. */}
+            {/* 모든 variant에 자동 주입: 페이지 풀이미지 배경 — 비어있으면 흰 배경, 채우면 사진.
+                사진이 있으면 zoom + 4방향 pan 가능 (단일 블록과 동일 UX). */}
             <FieldEditor
               field={{ key: 'bgPhoto', label: '페이지 풀이미지 배경', type: 'image' }}
               value={page.props.bgPhoto ?? ''}
               onChange={(v) => updatePageProp(pageIndex, 'bgPhoto', v)}
               onCommit={(v) => updatePageProp(pageIndex, 'bgPhoto', v, { commit: true })}
               onApplyAll={() => applyToAllPages('bgPhoto', page.props.bgPhoto)}
+              positionValue={page.props.bgPhotoPosition}
+              scaleValue={page.props.bgPhotoScale}
+              onPositionCommit={(v, opts) => updatePageProp(pageIndex, 'bgPhotoPosition', v, opts || {})}
+              onScaleCommit={(v, opts) => updatePageProp(pageIndex, 'bgPhotoScale', v, opts || {})}
             />
             {(variant.fields ?? []).map((f) => (
               <FieldEditor
@@ -318,48 +324,58 @@ function BlockSidebar({ page, pageIndex, selectedIds }) {
   );
 }
 
-/* ─── 이미지 블록 — 미리보기 + 원본 재배치 (background-position 드래그 + zoom 슬라이더) ─── */
+/* ─── 이미지 블록 — 미리보기 + 원본 재배치 (얇은 wrapper: 블록 props 매핑) ─── */
 function ImagePositionEditor({ block, setProp }) {
+  return (
+    <PhotoPositionEditor
+      src={block.props.src}
+      position={block.props.objectPosition}
+      scale={block.props.objectScale}
+      onPositionChange={(v, opts) => setProp('objectPosition', v, opts)}
+      onScaleChange={(v, opts) => setProp('objectScale', v, opts)}
+    />
+  );
+}
+
+/* ─── 범용 사진 위치/확대 에디터 — block overlay & page bgPhoto 양쪽에서 재사용 ───
+ * props:
+ *   src — 이미지 URL
+ *   position — 'x% y%' 또는 'center'
+ *   scale — 1.0~4.0
+ *   onPositionChange(value, opts) — value는 'x% y%' 문자열
+ *   onScaleChange(value, opts)
+ *   opts.commit=true면 history에 푸시.
+ */
+function PhotoPositionEditor({ src, position, scale: rawScale, onPositionChange, onScaleChange }) {
   const ref = useRef(null);
   const [dragging, setDragging] = React.useState(false);
-  // objectPosition은 'x% y%' 형식. 기본 'center' = '50% 50%'
-  const pos = parseBgPosition(block.props.objectPosition);
-  // objectScale은 1 = cover 기본, > 1이면 확대.
-  const scale = typeof block.props.objectScale === 'number' && block.props.objectScale >= 1
-    ? block.props.objectScale
-    : 1;
-
-  function previewPos(p) {
-    setProp('objectPosition', `${p.x}% ${p.y}%`);
-  }
+  const pos = parseBgPosition(position);
+  const scale = typeof rawScale === 'number' && rawScale >= 1 ? rawScale : 1;
+  // 드래그 종료 시 최신 position을 읽기 위한 ref
+  const posRef = useRef(pos);
+  posRef.current = pos;
 
   function onPointerDown(e) {
-    // 슬라이더 클릭 시 드래그 막기
     if (e.target.closest('input[type="range"]')) return;
     e.preventDefault();
     setDragging(true);
     const rect = ref.current.getBoundingClientRect();
     const start = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y };
     function onMove(ev) {
-      // 줌이 클수록 동일 드래그가 더 적게 움직이도록 scale로 나눠줌 → 직관적인 팬 감각
       const dx = ((ev.clientX - start.x) / rect.width) * 100 / scale;
       const dy = ((ev.clientY - start.y) / rect.height) * 100 / scale;
       const nx = Math.max(0, Math.min(100, start.px - dx));
       const ny = Math.max(0, Math.min(100, start.py - dy));
-      previewPos({ x: Math.round(nx), y: Math.round(ny) });
+      const next = { x: Math.round(nx), y: Math.round(ny) };
+      posRef.current = next;
+      onPositionChange(`${next.x}% ${next.y}%`);
     }
     function onUp() {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       setDragging(false);
-      // 마지막 값을 history와 함께 commit
-      const cur = parseBgPosition(
-        useProjectStore.getState().projects
-          .find((p) => p.id === useProjectStore.getState().activeProjectId)
-          ?.pages[useProjectStore.getState().activePageIndex]
-          ?.overlays?.find((b) => b.id === block.id)?.props?.objectPosition
-      );
-      setProp('objectPosition', `${cur.x}% ${cur.y}%`, { commit: true });
+      const cur = posRef.current;
+      onPositionChange(`${cur.x}% ${cur.y}%`, { commit: true });
     }
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -371,18 +387,14 @@ function ImagePositionEditor({ block, setProp }) {
         ref={ref}
         onPointerDown={onPointerDown}
         className="relative surface-card-sm overflow-hidden"
-        style={{
-          height: 140,
-          cursor: dragging ? 'grabbing' : 'grab',
-        }}
+        style={{ height: 140, cursor: dragging ? 'grabbing' : 'grab' }}
         title="드래그해서 잘릴 영역 조절 · 슬라이더로 확대"
       >
-        {/* zoom은 inner div의 transform: scale로 처리 — bg cover 위에 자연스럽게 얹힘 */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: `url(${block.props.src})`,
+            backgroundImage: `url(${src})`,
             backgroundSize: 'cover',
             backgroundPosition: `${pos.x}% ${pos.y}%`,
             transform: `scale(${scale})`,
@@ -393,7 +405,6 @@ function ImagePositionEditor({ block, setProp }) {
           {pos.x}% · {pos.y}% · {scale.toFixed(1)}x
         </span>
       </div>
-      {/* 확대 슬라이더 */}
       <div className="mt-2 flex items-center gap-2">
         <span className="t-cap text-meta-steel w-7 shrink-0">확대</span>
         <input
@@ -402,9 +413,9 @@ function ImagePositionEditor({ block, setProp }) {
           max="4"
           step="0.1"
           value={scale}
-          onChange={(e) => setProp('objectScale', Number(e.target.value))}
-          onMouseUp={(e) => setProp('objectScale', Number(e.currentTarget.value), { commit: true })}
-          onTouchEnd={(e) => setProp('objectScale', Number(e.currentTarget.value), { commit: true })}
+          onChange={(e) => onScaleChange(Number(e.target.value))}
+          onMouseUp={(e) => onScaleChange(Number(e.currentTarget.value), { commit: true })}
+          onTouchEnd={(e) => onScaleChange(Number(e.currentTarget.value), { commit: true })}
           className="flex-1 accent-meta-primary"
         />
         <span className="mono text-[10px] text-meta-steel w-8 text-right tabular-nums">
@@ -416,8 +427,8 @@ function ImagePositionEditor({ block, setProp }) {
         <button
           type="button"
           onClick={() => {
-            setProp('objectPosition', 'center', { commit: true });
-            setProp('objectScale', 1, { commit: true });
+            onPositionChange('center', { commit: true });
+            onScaleChange(1, { commit: true });
           }}
           className="t-cap text-meta-steel hover:text-meta-primary"
         >
@@ -493,7 +504,27 @@ function ColorInput({ label, value, onCommit }) {
   );
 }
 
-function FieldEditor({ field, value, onChange, onCommit, onApplyAll }) {
+// position/scale 부가 props: image field가 풀이미지로 동작할 때 zoom+pan UI 활성화.
+// 사이드바 내에서 다음 입력 필드로 포커스 이동.
+// 텍스트 input / textarea / select 만 대상. 파일·컬러·range·버튼은 스킵.
+function focusNextField(currentEl) {
+  const aside = currentEl?.closest('aside');
+  if (!aside) return;
+  const candidates = Array.from(
+    aside.querySelectorAll('input[type="text"], input[type="number"], input:not([type]), textarea, select')
+  ).filter((el) => !el.disabled && el.offsetParent !== null);
+  const idx = candidates.indexOf(currentEl);
+  if (idx === -1 || idx + 1 >= candidates.length) return;
+  const next = candidates[idx + 1];
+  next.focus();
+  // 텍스트 / textarea는 커서를 끝으로 옮겨 자연스럽게 이어쓰기
+  if (typeof next.setSelectionRange === 'function' && typeof next.value === 'string') {
+    const end = next.value.length;
+    try { next.setSelectionRange(end, end); } catch {}
+  }
+}
+
+function FieldEditor({ field, value, onChange, onCommit, onApplyAll, positionValue, scaleValue, onPositionCommit, onScaleCommit }) {
   // points-list는 array — 별도 처리 (stripHtml 위로)
   if (field.type === 'points-list') {
     return <PointsListField field={field} value={value} onCommit={onCommit} onApplyAll={onApplyAll} />;
@@ -519,28 +550,49 @@ function FieldEditor({ field, value, onChange, onCommit, onApplyAll }) {
   if (field.type === 'image' || field.type === 'media') {
     const allowVideo = field.type === 'media';
     const isVideoSrc = typeof value === 'string' && (value.startsWith('data:video/') || /\.(mp4|webm|mov)(\?|$)/i.test(value));
+    // 사진이 있고 + 위치/확대 핸들러가 전달되면 PhotoPositionEditor 사용 (블록·페이지 풀배경 공통)
+    const supportsPanZoom = value && !isVideoSrc && onPositionCommit && onScaleCommit;
     return (
       <div>
         <Label field={field} onApplyAll={onApplyAll} />
         <div className="space-y-2">
           {value ? (
-            <div className="relative surface-card-sm overflow-hidden">
-              {isVideoSrc ? (
-                <video src={value} className="block w-full h-36 object-cover" muted autoPlay loop playsInline />
-              ) : (
-                <img src={value} alt="" className="block w-full h-36 object-cover" />
-              )}
-              <button
-                onClick={() => {
-                  onCommit('');
-                  setLocal('');
-                }}
-                className="absolute top-2 right-2 btn-icon-circle btn shadow-meta-card"
-                title="제거"
-              >
-                ×
-              </button>
-            </div>
+            supportsPanZoom ? (
+              <div className="space-y-2">
+                <PhotoPositionEditor
+                  src={value}
+                  position={positionValue}
+                  scale={scaleValue}
+                  onPositionChange={onPositionCommit}
+                  onScaleChange={onScaleCommit}
+                />
+                <button
+                  type="button"
+                  onClick={() => { onCommit(''); setLocal(''); }}
+                  className="t-cap text-meta-stone hover:text-meta-critical"
+                >
+                  × 사진 제거
+                </button>
+              </div>
+            ) : (
+              <div className="relative surface-card-sm overflow-hidden">
+                {isVideoSrc ? (
+                  <video src={value} className="block w-full h-36 object-cover" muted autoPlay loop playsInline />
+                ) : (
+                  <img src={value} alt="" className="block w-full h-36 object-cover" />
+                )}
+                <button
+                  onClick={() => {
+                    onCommit('');
+                    setLocal('');
+                  }}
+                  className="absolute top-2 right-2 btn-icon-circle btn shadow-meta-card"
+                  title="제거"
+                >
+                  ×
+                </button>
+              </div>
+            )
           ) : (
             <div className="surface-card-sm h-36 flex items-center justify-center bg-meta-surface t-body-s text-meta-stone">
               {allowVideo ? '이미지/영상 없음' : '사진 없음'}
@@ -550,23 +602,28 @@ function FieldEditor({ field, value, onChange, onCommit, onApplyAll }) {
             <input
               type="file"
               accept={allowVideo ? 'image/*,video/*' : 'image/*'}
-              // 같은 파일을 한 번 더 선택해도 onChange가 발화하도록 click 직전 value 리셋.
-              // 그리고 reader가 끝나기 전에 input.value를 비워두면 다음 업로드도 즉시 가능.
               onClick={(e) => { e.currentTarget.value = ''; }}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
+                e.target.value = '';
                 if (!file) return;
-                const input = e.target;
+                // 영상은 ImageKit 무료 플랜에서 제약이 있으므로 일단 data URL 경로 유지.
+                // 이미지는 ImageKit 직행 → 영구 CDN URL.
+                if (file.type.startsWith('image/')) {
+                  try {
+                    const url = await uploadImage(file, { folder: `cardnews/${field.key}` });
+                    onCommit(url);
+                    setLocal(url);
+                  } catch (err) {
+                    console.error('[upload]', err);
+                    alert(`업로드 실패: ${err.message}`);
+                  }
+                  return;
+                }
+                // 영상 fallback — data URL
                 const reader = new FileReader();
-                reader.onload = () => {
-                  onCommit(reader.result);
-                  setLocal(reader.result);
-                  input.value = '';
-                };
-                reader.onerror = () => {
-                  console.warn('[upload] FileReader failed', reader.error);
-                  input.value = '';
-                };
+                reader.onload = () => { onCommit(reader.result); setLocal(reader.result); };
+                reader.onerror = () => console.warn('[upload] reader failed', reader.error);
                 reader.readAsDataURL(file);
               }}
               className="hidden"
@@ -626,6 +683,14 @@ function FieldEditor({ field, value, onChange, onCommit, onApplyAll }) {
             if (e.target.value !== lastPlainRef.current) onChange(e.target.value);
           }}
           onBlur={commitChange}
+          // textarea는 Enter=줄바꿈 기본. Cmd/Ctrl+Enter → 다음 필드.
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              commitChange();
+              focusNextField(e.currentTarget);
+            }
+          }}
           rows={rows}
           className="field"
         />
@@ -671,7 +736,11 @@ function FieldEditor({ field, value, onChange, onCommit, onApplyAll }) {
         }}
         onBlur={commitChange}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commitChange();
+            focusNextField(e.currentTarget);
+          }
         }}
         className="field"
       />

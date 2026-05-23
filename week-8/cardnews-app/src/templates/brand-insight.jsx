@@ -104,6 +104,7 @@ export const BI_VARIANTS = [
         </span>
         <CoverTitle x={84} y={940} w={912} title={title} titleSize={88} titleLineHeight={1.15} titleField="title" />
         <div
+          data-cn-field="wordEng"
           style={{
             position: 'absolute',
             left: 84,
@@ -166,6 +167,7 @@ export const BI_VARIANTS = [
         </span>
         <CoverTitle x={84} y={830} w={912} title={title} titleSize={86} titleLineHeight={1.15} titleField="title" />
         <div
+          data-cn-field="wordEng"
           style={{
             position: 'absolute',
             left: 84,
@@ -198,16 +200,16 @@ export const BI_VARIANTS = [
     ),
   },
 
-  /* ── Body · text heavy ── */
+  /* ── Body · text heavy (큰 제목 / 소제목 / 본문) — 형광·볼드는 본문 드래그 시 floating bar ── */
   {
     id: 'bi-body-text',
-    label: '본문 · 큰 제목 + 형광 + 본문',
+    label: '본문 · 큰 제목 + 소제목 + 본문',
     category: 'body',
     fields: [
       ...COMMON,
       { key: 'heading', label: '큰 제목', type: 'textarea', default: '장인의 손맛이\n브랜드의 정체성이 될 때' },
-      { key: 'highlight', label: '형광 강조 문구', type: 'text', default: '오래 입을수록 진가가 드러나는 옷' },
-      { key: 'highlightRest', label: '강조 뒤 일반 문장', type: 'text', default: ', 그 안에 담긴 철학.' },
+      { key: 'subhead', label: '소제목 (드래그→형광·볼드)', type: 'textarea',
+        default: '<mark class="cn-hl">오래 입을수록 진가가 드러나는 옷</mark>, 그 안에 담긴 철학.' },
       { key: 'body', label: '본문', type: 'textarea', default:
 `팝업 플랜을 세분화하기 위해 사전 질문지를 공유드립니다.
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로 니즈를 편하게
@@ -217,40 +219,46 @@ export const BI_VARIANTS = [
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로 니즈를 편하게
 답변해주세요!` },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, highlight, highlightRest, body }) => (
-      <Card>
-        <BIEyebrow eyebrow={eyebrow} />
-        <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
-        <Heading01 x={84} y={220} w={912} size={56} field="heading">
-          {heading}
-        </Heading01>
-        <div
-          style={{
-            position: 'absolute',
-            left: 84,
-            top: 470,
-            width: 912,
-            fontFamily: CN_FONT,
-            fontWeight: 700,
-            fontSize: 32,
-            letterSpacing: '-0.04em',
-            lineHeight: 1.5,
-          }}
-        >
-          <span
-            data-cn-field="highlight"
-            style={{ background: `linear-gradient(transparent 62%, ${CN_COLORS.neon} 62%)`, padding: '0 4px' }}
-          >
-            {highlight}
-          </span>
-          <span data-cn-field="highlightRest">{highlightRest}</span>
-        </div>
-        <BodyText x={84} y={620} w={912} size={32} weight={500} lineHeight={1.7} field="body">
-          {body}
-        </BodyText>
-        <CardFooter left={caption} right={page} leftField="caption" />
-      </Card>
-    ),
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, subhead, highlight, highlightRest, body }) => {
+      // 기존 프로젝트 호환: highlight + highlightRest 분리 필드가 있던 시절 데이터 → subhead HTML로 합치기
+      const subheadHtml = subhead || (
+        highlight || highlightRest
+          ? `${highlight ? `<mark class="cn-hl">${highlight}</mark>` : ''}${highlightRest || ''}`
+          : ''
+      );
+      return (
+        <Card>
+          <BIEyebrow eyebrow={eyebrow} />
+          <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
+          <Heading01 x={84} y={220} w={912} size={56} field="heading">
+            {heading}
+          </Heading01>
+          {/* 소제목 — 형광·볼드는 캔버스에서 드래그 후 floating bar로 적용 */}
+          <div
+            data-cn-field="subhead"
+            data-cn-multiline="1"
+            style={{
+              position: 'absolute',
+              left: 84,
+              top: 470,
+              width: 912,
+              fontFamily: CN_FONT,
+              fontWeight: 700,
+              fontSize: 32,
+              letterSpacing: '-0.04em',
+              lineHeight: 1.5,
+              whiteSpace: 'pre-line',
+              wordBreak: 'keep-all',
+            }}
+            dangerouslySetInnerHTML={{ __html: subheadHtml }}
+          />
+          <BodyText x={84} y={620} w={912} size={32} weight={500} lineHeight={1.7} field="body">
+            {body}
+          </BodyText>
+          <CardFooter left={caption} right={page} leftField="caption" />
+        </Card>
+      );
+    },
   },
 
   /* ── Body · overlay (자유 드래그) ── */

@@ -168,9 +168,10 @@ textarea.field { resize: vertical; line-height: 1.55; padding: 12px; }
 .no-scrollbar { scrollbar-width: none; }
 
 /* Editable text — inplace editing on canvas */
-[data-cn-field] { cursor: text; transition: outline-color 100ms; outline: 2px solid transparent; outline-offset: 4px; border-radius: 2px; }
-[data-cn-field]:hover:not([contenteditable="true"]) { outline-color: rgba(0, 100, 224, 0.35); }
-[data-cn-field][contenteditable="true"] { outline-color: var(--meta-primary); outline-offset: 4px; background-color: rgba(0, 100, 224, 0.05); cursor: text; }
+/* 호버 인디케이터는 사용자 요청으로 제거 (수정 가능 영역으로 오인 방지).
+   클릭 → 편집 진입했을 때만 outline + 옅은 배경 표시. */
+[data-cn-field] { border-radius: 2px; }
+[data-cn-field][contenteditable="true"] { outline: 2px solid var(--meta-primary); outline-offset: 4px; background-color: rgba(0, 100, 224, 0.05); cursor: text; }
 [data-cn-field][contenteditable="true"]:focus { outline-color: var(--meta-primary); }
 
 /* 인라인 형광펜 — Cmd+Shift+H로 토글, 데이터 모델은 <mark class="cn-hl"> */

@@ -59,7 +59,7 @@ export function PageThumbStrip({ project }) {
                   <div className="relative overflow-hidden" style={{ paddingBottom: `${(CARD_H / CARD_W) * 100}%` }}>
                     <div style={{ position: 'absolute', inset: 0 }}>
                       <div style={{ width: CARD_W, height: CARD_H, transform: 'scale(0.18)', transformOrigin: 'top left', position: 'relative' }}>
-                        <BgPhotoContext.Provider value={page.props.bgPhoto || null}>
+                        <BgPhotoContext.Provider value={page.props.bgPhoto ? { src: page.props.bgPhoto, scale: page.props.bgPhotoScale || 1, position: page.props.bgPhotoPosition || 'center' } : null}>
                           <Comp {...props} />
                         </BgPhotoContext.Provider>
                         <OverlayPreview overlays={page.overlays} />

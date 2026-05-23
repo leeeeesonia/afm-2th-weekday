@@ -5,6 +5,7 @@
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
+import ImageKit from 'imagekit';
 
 const { Pool } = pg;
 
@@ -19,9 +20,57 @@ const pool = new Pool({
   max: process.env.VERCEL ? 1 : 10, // serverless에선 connection 적게
 });
 
+// ImageKit — env 미설정이면 클라이언트 업로드는 비활성화 (auth endpoint가 503 반환)
+let imagekit = null;
+if (process.env.IMAGEKIT_PUBLIC_KEY && process.env.IMAGEKIT_PRIVATE_KEY && process.env.IMAGEKIT_URL_ENDPOINT) {
+  imagekit = new ImageKit({
+    publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+    privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+  });
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+/* ─── ImageKit 업로드 — 서버 경유 방식 ───
+ * 클라이언트가 base64로 인코딩한 파일을 JSON으로 POST.
+ * 서버가 ImageKit SDK로 업로드 → CDN URL 반환.
+ *
+ * 장점:
+ *  - private key가 클라이언트에 절대 노출되지 않음
+ *  - 서버에서 파일 크기/타입 검증 가능
+ *  - ImageKit 클라이언트 사이드 SDK 의존성 0
+ *  - JSON 바디라 멀티파트 파서 불필요
+ *
+ * 제한: Vercel serverless 함수 바디 4.5MB → 이미지 원본도 그 안. base64 오버헤드 33%.
+ *       2~3MB 이상 큰 사진은 클라이언트에서 리사이즈하거나, 파일 사이즈 안내.
+ */
+app.post('/api/upload', async (req, res) => {
+  if (!imagekit) {
+    return res.status(503).json({ error: 'ImageKit not configured (set IMAGEKIT_* env vars)' });
+  }
+  try {
+    const { file, fileName, folder } = req.body || {};
+    if (!file || typeof file !== 'string') {
+      return res.status(400).json({ error: 'file (base64 string) required' });
+    }
+    // file은 'data:image/png;base64,XXX...' 또는 그냥 base64 문자열
+    const base64 = file.includes(',') ? file.split(',')[1] : file;
+    const buffer = Buffer.from(base64, 'base64');
+    const result = await imagekit.upload({
+      file: buffer,
+      fileName: fileName || `upload-${Date.now()}.png`,
+      folder: folder || 'cardnews',
+      useUniqueFileName: true,
+    });
+    res.json({ url: result.url, fileId: result.fileId, name: result.name });
+  } catch (e) {
+    console.error('[upload]', e);
+    res.status(500).json({ error: e.message || 'upload failed' });
+  }
+});
 
 /* ─── Health ─── */
 app.get('/api/health', async (req, res) => {

@@ -4,6 +4,7 @@ import React, { useRef, useEffect } from 'react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { STICKER_REGISTRY } from '../design/stickers.jsx';
 import { CN_COLORS } from '../design/tokens.js';
+import { uploadImage } from '../lib/uploadImage.js';
 
 const HANDLES = [
   { id: 'nw', cursor: 'nwse-resize', x: 0, y: 0 },
@@ -16,21 +17,29 @@ const HANDLES = [
   { id: 'w', cursor: 'ew-resize', x: 0, y: 0.5 },
 ];
 
-// 이미지 블록 — 호버 시 카메라 아이콘으로 인플레이스 업로드
+// 이미지 블록 — 호버 시 카메라 아이콘으로 인플레이스 업로드 (ImageKit 직행)
 function ImageBlockContent({ block }) {
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const fileRef = useRef(null);
   const [hover, setHover] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const { props } = block;
   const hasSrc = !!props.src;
 
-  function onFile(e) {
+  async function onFile(e) {
     const file = e.target.files?.[0];
+    e.target.value = ''; // 동일 파일 재선택 가능하게 리셋
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => updateBlock(block.id, { props: { src: reader.result } }, { commit: true });
-    reader.readAsDataURL(file);
-    e.target.value = ''; // reset
+    setUploading(true);
+    try {
+      const url = await uploadImage(file, { folder: 'cardnews/blocks' });
+      updateBlock(block.id, { props: { src: url } }, { commit: true });
+    } catch (err) {
+      console.error('[upload]', err);
+      alert(`업로드 실패: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
   }
 
   // BUG NOTE: React가 `background: undefined`를 시그널로 background 단축을 비우면
@@ -117,7 +126,7 @@ function ImageBlockContent({ block }) {
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
             <circle cx="12" cy="13" r="4" />
           </svg>
-          {hasSrc ? '변경' : '이미지 추가'}
+          {uploading ? '업로드 중…' : hasSrc ? '변경' : '이미지 추가'}
         </button>
       )}
     </div>
