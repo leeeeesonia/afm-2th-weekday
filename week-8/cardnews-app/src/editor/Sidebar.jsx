@@ -529,6 +529,10 @@ function FieldEditor({ field, value, onChange, onCommit, onApplyAll, positionVal
   if (field.type === 'points-list') {
     return <PointsListField field={field} value={value} onCommit={onCommit} onApplyAll={onApplyAll} />;
   }
+  // summary-rows — bi-body-summary용 행 단위 표 (2~5행)
+  if (field.type === 'summary-rows') {
+    return <SummaryRowsField field={field} value={value} onCommit={onCommit} />;
+  }
 
   // 텍스트 필드는 plain text로 보여주되, 미변경 시 원본 HTML 보존.
   const plain = stripHtml(value);
@@ -887,6 +891,72 @@ function PointsListField({ field, value, onCommit, onApplyAll }) {
         <button onClick={addRow} className="btn btn-ghost w-full justify-center">+ 행 추가</button>
         <div className="t-cap text-meta-stone">
           💡 행 추가 시 단일 셀링포인트 페이지가 자동 생성/동기됩니다.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── bi-body-summary 행 단위 표 (2~5행) ───
+ * 캔버스에서 라벨·값을 인플레이스 편집하므로, 사이드바는 행 추가/삭제만 담당.
+ * 행 갯수 안내 + 표 추가 버튼 + 행 삭제 버튼.
+ */
+function SummaryRowsField({ field, value, onCommit }) {
+  const rows = Array.isArray(value) && value.length > 0
+    ? value
+    : [{ label: '판매처', value: '' }, { label: '가격', value: '' }, { label: 'Insight', value: '' }];
+  const MIN = 2;
+  const MAX = 5;
+  function addRow() {
+    if (rows.length >= MAX) return;
+    onCommit([...rows, { label: '항목', value: '' }]);
+  }
+  function removeRow(i) {
+    if (rows.length <= MIN) return;
+    onCommit(rows.filter((_, idx) => idx !== i));
+  }
+  function moveRow(i, di) {
+    const j = i + di;
+    if (j < 0 || j >= rows.length) return;
+    const copy = rows.slice();
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+    onCommit(copy);
+  }
+  return (
+    <div>
+      <Label field={field} />
+      <div className="space-y-1.5">
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-center gap-1.5 border border-meta-hairline-soft rounded-md px-2 py-1.5">
+            <span className="mono w-7 shrink-0 text-center t-cap text-meta-steel">#{i + 1}</span>
+            <span className="flex-1 t-cap text-meta-ink-deep truncate" title={row.label}>{row.label || '(빈 라벨)'}</span>
+            <button
+              onClick={() => moveRow(i, -1)}
+              className="border border-meta-hairline-soft rounded-md px-1.5 text-[10px] hover:bg-meta-surface"
+              title="위로"
+            >▲</button>
+            <button
+              onClick={() => moveRow(i, 1)}
+              className="border border-meta-hairline-soft rounded-md px-1.5 text-[10px] hover:bg-meta-surface"
+              title="아래로"
+            >▼</button>
+            <button
+              onClick={() => removeRow(i)}
+              disabled={rows.length <= MIN}
+              className="border border-meta-hairline-soft rounded-md px-2 text-meta-critical hover:bg-meta-surface disabled:opacity-30 disabled:cursor-not-allowed"
+              title={rows.length <= MIN ? `최소 ${MIN}개 유지` : '행 삭제'}
+            >×</button>
+          </div>
+        ))}
+        <button
+          onClick={addRow}
+          disabled={rows.length >= MAX}
+          className="btn btn-ghost w-full justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          + 표 추가 {rows.length >= MAX ? `(최대 ${MAX})` : `(${rows.length}/${MAX})`}
+        </button>
+        <div className="t-cap text-meta-stone">
+          💡 라벨·값은 캔버스 미리보기에서 직접 클릭해서 수정하세요.
         </div>
       </div>
     </div>

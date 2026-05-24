@@ -323,9 +323,23 @@ export const useProjectStore = create(
           const p = s.projects.find((x) => x.id === s.activeProjectId);
           if (!p || !p.pages[pageIndex]) return;
           const cur = p.pages[pageIndex];
-          cur.props[key] = value;
-          // AUTO_SYNC: 같은 키 가진 모든 페이지에 자동 적용
-          if (AUTO_SYNC_KEYS.has(key)) {
+          // 점 표기 경로 지원 (예: 'rows.0.label') — bi-body-summary 같은 행 단위 데이터
+          if (typeof key === 'string' && key.includes('.')) {
+            const parts = key.split('.');
+            let target = cur.props;
+            for (let i = 0; i < parts.length - 1; i++) {
+              const seg = parts[i];
+              // 다음 segment가 숫자면 array, 아니면 object 자동 생성
+              const nextIsIndex = /^\d+$/.test(parts[i + 1]);
+              if (target[seg] == null) target[seg] = nextIsIndex ? [] : {};
+              target = target[seg];
+            }
+            target[parts[parts.length - 1]] = value;
+          } else {
+            cur.props[key] = value;
+          }
+          // AUTO_SYNC: 같은 키 가진 모든 페이지에 자동 적용 (dotted path는 제외)
+          if (typeof key === 'string' && !key.includes('.') && AUTO_SYNC_KEYS.has(key)) {
             for (const page of p.pages) {
               if (page.props && Object.prototype.hasOwnProperty.call(page.props, key)) {
                 page.props[key] = value;

@@ -79,11 +79,11 @@ export const BI_VARIANTS = [
     category: 'cover',
     fields: [
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Insight Note' },
-      { key: 'eyebrowSub', label: '한글 부제 (우상단)', type: 'text', default: '사적인 디깅노트-' },
+      { key: 'eyebrowSub', label: '한글 부제 (우상단)', type: 'text', default: '사적인 디깅노트' },
       { key: 'title', label: '메인 타이틀', type: 'text', default: '포터 클래식의 미학' },
       { key: 'wordEng', label: '하단 영문', type: 'text', default: 'PORTER CLASSIC STORY' },
     ],
-    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, page }) => (
+    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng }) => (
       <Card>
         <BIEyebrow eyebrow={eyebrow} />
         <span
@@ -119,20 +119,6 @@ export const BI_VARIANTS = [
         >
           {wordEng}
         </div>
-        <div
-          style={{
-            position: 'absolute',
-            right: 84,
-            bottom: 84,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontSize: 28,
-            fontWeight: 500,
-            letterSpacing: '0.04em',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {page}
-        </div>
       </Card>
     ),
   },
@@ -141,12 +127,12 @@ export const BI_VARIANTS = [
     label: '표지 · 2줄 타이틀',
     category: 'cover',
     fields: [
-      { key: 'eyebrowSub', label: '한글 부제 (우상단)', type: 'text', default: '사적인 디깅노트-' },
+      { key: 'eyebrowSub', label: '한글 부제 (우상단)', type: 'text', default: '사적인 디깅노트' },
       { key: 'title', label: '메인 타이틀 (2줄)', type: 'textarea', default: '오래 사랑받는 옷,\n포터 클래식의 미학' },
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Insight Note' },
       { key: 'wordEng', label: '하단 영문', type: 'text', default: 'PORTER CLASSIC STORY' },
     ],
-    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, page }) => (
+    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng }) => (
       <Card>
         <BIEyebrow eyebrow={eyebrow} />
         <span
@@ -165,7 +151,27 @@ export const BI_VARIANTS = [
         >
           {eyebrowSub}
         </span>
-        <CoverTitle x={84} y={830} w={912} title={title} titleSize={86} titleLineHeight={1.15} titleField="title" />
+        {/* 2줄 타이틀 — 하단 정렬. bottom 기준으로 잡아서 한 줄이든 두 줄이든 wordEng와 안 겹침.
+            wordEng는 top:1078 (높이 ~34) → 약 y=1112까지 차지. 그 위로 28px 여백 두고 타이틀 끝점을 y=1050에 둠. */}
+        <div
+          data-cn-field="title"
+          data-cn-multiline="1"
+          style={{
+            position: 'absolute',
+            left: 84,
+            bottom: 300,    // 1350 - 1050 = 300
+            width: 912,
+            fontFamily: CN_FONT,
+            fontWeight: 800,
+            fontSize: 86,
+            lineHeight: 1.15,
+            letterSpacing: '-0.045em',
+            whiteSpace: 'pre-line',
+            wordBreak: 'keep-all',
+            overflowWrap: 'anywhere',
+          }}
+          dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+        />
         <div
           data-cn-field="wordEng"
           style={{
@@ -182,20 +188,6 @@ export const BI_VARIANTS = [
         >
           {wordEng}
         </div>
-        <div
-          style={{
-            position: 'absolute',
-            right: 84,
-            bottom: 84,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontSize: 28,
-            fontWeight: 500,
-            letterSpacing: '0.04em',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {page}
-        </div>
       </Card>
     ),
   },
@@ -208,8 +200,8 @@ export const BI_VARIANTS = [
     fields: [
       ...COMMON,
       { key: 'heading', label: '큰 제목', type: 'textarea', default: '장인의 손맛이\n브랜드의 정체성이 될 때' },
-      { key: 'subhead', label: '소제목 (드래그→형광·볼드)', type: 'textarea',
-        default: '<mark class="cn-hl">오래 입을수록 진가가 드러나는 옷</mark>, 그 안에 담긴 철학.' },
+      { key: 'subhead', label: '소제목', type: 'textarea',
+        default: '오래 입을수록 진가가 드러나는 옷, 그 안에 담긴 철학.' },
       { key: 'body', label: '본문', type: 'textarea', default:
 `팝업 플랜을 세분화하기 위해 사전 질문지를 공유드립니다.
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로 니즈를 편하게
@@ -350,49 +342,59 @@ export const BI_VARIANTS = [
     category: 'body',
     fields: [
       ...COMMON,
-      { key: 'highlight', label: '강조 단어 (형광)', type: 'text', default: '피그마 AI' },
-      { key: 'rest', label: '나머지 카피', type: 'text', default: '정복기 가능?' },
+      // 단일 타이틀 — 형광·볼드는 캔버스에서 드래그 후 floating bar(B/H)로 적용.
+      // 줄바꿈은 Shift+Enter(또는 \n).
+      { key: 'title', label: '메인 카피', type: 'textarea', default: '피그마 AI 정복기 가능?' },
       { key: 'body', label: '하단 인용', type: 'textarea', default:
 `팝업 플랜을 세분화하기 위해 사전 질문지를 공유드립니다.
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로
 니즈를 편하게 답변해주세요!` },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, highlight, rest, body }) => (
-      <Card>
-        <BIEyebrow eyebrow={eyebrow} />
-        <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 320,
-            textAlign: 'center',
-            fontFamily: CN_FONT,
-            fontWeight: 800,
-            fontSize: 80,
-            lineHeight: 1.2,
-            letterSpacing: '-0.045em',
-            whiteSpace: 'pre-line',
-          }}
-        >
-          <span
-            data-cn-field="highlight"
-            style={{ background: `linear-gradient(transparent 62%, ${CN_COLORS.neon} 62%)`, padding: '0 14px' }}
-          >
-            {highlight}
-          </span>
-          {'\n'}
-          <span data-cn-field="rest">{rest}</span>
-        </div>
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 720, display: 'flex', justifyContent: 'center' }}>
-          <StandardMiddle w={830} size={30}>
-            {body}
-          </StandardMiddle>
-        </div>
-        <CardFooter left={caption} right={page} leftField="caption" />
-      </Card>
-    ),
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, title, highlight, rest, body }) => {
+      // 기존 highlight/rest 두 필드 데이터 → 단일 title로 합치기 (호환성)
+      const titleHtml = title || (
+        highlight || rest
+          ? `${highlight || ''}${highlight && rest ? '\n' : ''}${rest || ''}`
+          : ''
+      );
+      return (
+        <Card>
+          <BIEyebrow eyebrow={eyebrow} />
+          <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
+          {/* 메인 타이틀 — 단일 박스, 형광·볼드는 드래그로 사용자가 직접 */}
+          <div
+            data-cn-field="title"
+            data-cn-multiline="1"
+            style={{
+              position: 'absolute',
+              left: 84,
+              right: 84,
+              top: 320,
+              textAlign: 'center',
+              fontFamily: CN_FONT,
+              fontWeight: 800,
+              fontSize: 80,
+              lineHeight: 1.2,
+              letterSpacing: '-0.045em',
+              whiteSpace: 'pre-line',
+              wordBreak: 'keep-all',
+              overflowWrap: 'anywhere',
+            }}
+            dangerouslySetInnerHTML={{ __html: titleHtml }}
+          />
+          {/* 하단 인용 — StandardMiddle 스티커 안 텍스트도 인플레이스 편집 가능하게.
+              StandardMiddle은 children을 그대로 렌더하므로, 내부에 data-cn-field 보유한 div를 직접 넣음. */}
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 720, display: 'flex', justifyContent: 'center' }}>
+            <StandardMiddle w={830} size={30}>
+              <span data-cn-field="body" data-cn-multiline="1" style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}>
+                {body}
+              </span>
+            </StandardMiddle>
+          </div>
+          <CardFooter left={caption} right={page} leftField="caption" />
+        </Card>
+      );
+    },
   },
 
   /* ── Body · full image ── */
@@ -440,118 +442,123 @@ export const BI_VARIANTS = [
     ),
   },
 
-  /* ── Body · summary ── */
+  /* ── Body · summary — 행 단위 표(2~5행) + 인플레이스 편집 ── */
   {
     id: 'bi-body-summary',
-    label: '본문 · 정보 요약 (3행 박스)',
+    label: '본문 · 정보 요약 (행 단위 표)',
     category: 'body',
     fields: [
       ...COMMON,
       { key: 'brand', label: '브랜드 큰 글씨', type: 'text', default: '포터 클래식' },
-      { key: 'subtitle', label: '서브카피', type: 'text', default: '이제 어디서 만난 수 있을까?' },
-      { key: 'where', label: '판매처', type: 'textarea', default:
-`서울시 용산구 한강대로 5·
-PORTER STORE @porter.classic` },
-      { key: 'price', label: '가격', type: 'text', default: '메신저 토트백 198,000원~' },
-      { key: 'summary', label: 'Insight', type: 'textarea', default:
-`100년의 지혜를 담은 일본 교토의
-대표적 클래식 워크웨어 브랜드.` },
+      { key: 'subtitle', label: '서브카피', type: 'text', default: '이제 어디서 만날 수 있을까?' },
+      { key: 'rows', label: '표 행 (2~5개)', type: 'summary-rows', default: [
+        { label: '판매처', value: '서울시 용산구 한강대로 5·\nPORTER STORE @porter.classic' },
+        { label: '가격', value: '메신저 토트백 198,000원~' },
+        { label: 'Insight', value: '100년의 지혜를 담은 일본 교토의\n대표적 클래식 워크웨어 브랜드.' },
+      ] },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, brand, subtitle, where, price, summary }) => (
-      <Card>
-        <BIEyebrow eyebrow={eyebrow} />
-        <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 240,
-            textAlign: 'center',
-            fontFamily: CN_FONT,
-            fontWeight: 800,
-            fontSize: 64,
-            lineHeight: 1.15,
-            letterSpacing: '-0.045em',
-          }}
-        >
-          <span
-            data-cn-field="brand"
-            style={{ background: `linear-gradient(transparent 60%, ${CN_COLORS.neon} 60%)`, padding: '0 12px' }}
-          >
-            {brand}
-          </span>
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, brand, subtitle, rows, where, price, summary }) => {
+      // 기존 where/price/summary 분리 필드 데이터 → rows 배열로 자동 마이그레이션 (호환성)
+      const resolvedRows = Array.isArray(rows) && rows.length > 0
+        ? rows
+        : [
+            { label: '판매처', value: where || '' },
+            { label: '가격', value: price || '' },
+            { label: 'Insight', value: summary || '' },
+          ];
+      return (
+        <Card>
+          <BIEyebrow eyebrow={eyebrow} />
+          <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
           <div
-            data-cn-field="subtitle"
-            style={{ marginTop: 12, fontSize: 32, fontWeight: 500, letterSpacing: '-0.04em' }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 240,
+              textAlign: 'center',
+              fontFamily: CN_FONT,
+              fontWeight: 800,
+              fontSize: 64,
+              lineHeight: 1.15,
+              letterSpacing: '-0.045em',
+            }}
           >
-            {subtitle}
-          </div>
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            left: 84,
-            right: 84,
-            top: 540,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 24,
-          }}
-        >
-          {[
-            { label: '판매처', value: where },
-            { label: '가격', value: price },
-            { label: 'Insight', value: summary },
-          ].map((row) => (
+            {/* 브랜드 — 형광 강제 제거. 필요하면 사용자가 드래그 → floating bar로 직접 적용. */}
+            <span data-cn-field="brand">{brand}</span>
             <div
-              key={row.label}
-              style={{
-                display: 'flex',
-                alignItems: 'stretch',
-                border: `3px solid ${CN_COLORS.black}`,
-                background: '#fff',
-                minHeight: 120,
-              }}
+              data-cn-field="subtitle"
+              style={{ marginTop: 12, fontSize: 32, fontWeight: 500, letterSpacing: '-0.04em' }}
             >
-              <div
-                style={{
-                  minWidth: 180,
-                  background: CN_COLORS.lemon,
-                  borderRight: `3px solid ${CN_COLORS.black}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: CN_FONT,
-                  fontWeight: 800,
-                  fontSize: 30,
-                  letterSpacing: '-0.04em',
-                }}
-              >
-                {row.label}
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  padding: '24px 32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  fontFamily: CN_FONT,
-                  fontWeight: 500,
-                  fontSize: 28,
-                  lineHeight: 1.45,
-                  letterSpacing: '-0.04em',
-                  whiteSpace: 'pre-line',
-                }}
-              >
-                {row.value}
-              </div>
+              {subtitle}
             </div>
-          ))}
-        </div>
-        <CardFooter left={caption} right={page} leftField="caption" />
-      </Card>
-    ),
+          </div>
+          <div
+            style={{
+              position: 'absolute',
+              left: 84,
+              right: 84,
+              top: 540,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 24,
+            }}
+          >
+            {resolvedRows.map((row, i) => (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  border: `3px solid ${CN_COLORS.black}`,
+                  background: '#fff',
+                  minHeight: 120,
+                }}
+              >
+                {/* 라벨 셀 — 인플레이스 편집. data-cn-field에 dotted path 사용 → store가 rows[i].label로 업데이트 */}
+                <div
+                  data-cn-field={`rows.${i}.label`}
+                  style={{
+                    minWidth: 180,
+                    background: CN_COLORS.lemon,
+                    borderRight: `3px solid ${CN_COLORS.black}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: CN_FONT,
+                    fontWeight: 800,
+                    fontSize: 30,
+                    letterSpacing: '-0.04em',
+                  }}
+                >
+                  {row.label}
+                </div>
+                {/* 값 셀 — 인플레이스 편집 */}
+                <div
+                  data-cn-field={`rows.${i}.value`}
+                  data-cn-multiline="1"
+                  style={{
+                    flex: 1,
+                    padding: '24px 32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontFamily: CN_FONT,
+                    fontWeight: 500,
+                    fontSize: 28,
+                    lineHeight: 1.45,
+                    letterSpacing: '-0.04em',
+                    whiteSpace: 'pre-line',
+                  }}
+                >
+                  {row.value}
+                </div>
+              </div>
+            ))}
+          </div>
+          <CardFooter left={caption} right={page} leftField="caption" />
+        </Card>
+      );
+    },
   },
 
   /* ── 빈 페이지 (내지) ── */
