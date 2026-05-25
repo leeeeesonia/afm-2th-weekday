@@ -13,7 +13,6 @@ import {
   BackgroundFill,
 } from '../design/primitives.jsx';
 import { BG_FIELDS, bgItems } from './blankFields.js';
-import { BrandInsightCloud } from '../design/stickers.jsx';
 import { CARD_W, CARD_H, CN_FONT, CN_FONT_ARCHIVO, CN_COLORS } from '../design/tokens.js';
 
 function CLEyebrow({ eyebrow = '수집생활', color = '#000' }) {
@@ -118,7 +117,6 @@ function CLBodyTopRight({ children = 'WORKROOM', color = '#000', topRightLogo })
 const COVER_FIELDS = [
   { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: '수집생활' },
   { key: 'topRight', label: "우상단 (영문) — 표지", type: 'text', default: "Suji's Life" },
-  { key: 'cloudText', label: '클라우드 스티커 문구', type: 'text', default: 'LIFE  ›  HOME  ›  WORKROOM' },
   { key: 'wordEng', label: '하단 영문', type: 'text', default: "FREEWORKER'S WORKROOM" },
 ];
 
@@ -138,42 +136,39 @@ export const CL_VARIANTS = [
       ...COVER_FIELDS,
       { key: 'title', label: '메인 타이틀', type: 'text', default: '추구미와 현재형이 공존하는 홈오피스' },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, cloudText, wordEng, page, title }) => (
+    // 클라우드 스티커·우하단 페이지표기 제거. T1 좌하단 패턴 (bottom 200) + title 88 + wordEng 32.
+    Component: ({ eyebrow, topRight, topRightLogo, wordEng, title }) => (
       <Card>
         <CLEyebrow eyebrow={eyebrow} />
         <CLCoverTopRight topRightLogo={topRightLogo}>{topRight}</CLCoverTopRight>
-        <div style={{ position: 'absolute', left: 84, top: 850 }}>
-          <BrandInsightCloud size={28}>{cloudText}</BrandInsightCloud>
-        </div>
-        <CoverTitle x={84} y={950} w={912} title={title} titleSize={68} titleLineHeight={1.18} titleField="title" />
-        <div
-          style={{
-            position: 'absolute',
-            left: 84,
-            top: 1170,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontWeight: 500,
-            fontSize: 30,
-            letterSpacing: '0.16em',
-            color: '#000',
-            lineHeight: 1,
-          }}
-        >
-          {wordEng}
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            right: 84,
-            bottom: 84,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontSize: 28,
-            fontWeight: 500,
-            letterSpacing: '0.04em',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {page}
+        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
+          <div
+            data-cn-field="title"
+            data-cn-multiline="1"
+            style={{
+              fontWeight: 800,
+              fontSize: 88,
+              lineHeight: 1.15,
+              letterSpacing: '-0.045em',
+              whiteSpace: 'pre-line',
+              wordBreak: 'keep-all',
+              overflowWrap: 'anywhere',
+            }}
+            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+          />
+          <div
+            data-cn-field="wordEng"
+            style={{
+              marginTop: 30,
+              fontFamily: CN_FONT_ARCHIVO,
+              fontWeight: 500,
+              fontSize: 32,
+              letterSpacing: '0.16em',
+              lineHeight: 1,
+            }}
+          >
+            {wordEng}
+          </div>
         </div>
       </Card>
     ),
@@ -188,42 +183,38 @@ export const CL_VARIANTS = [
       ...COVER_FIELDS,
       { key: 'title', label: '메인 타이틀 (2줄)', type: 'textarea', default: '추구미와 현재형이\n공존하는 홈오피스' },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, cloudText, wordEng, page, title }) => (
+    Component: ({ eyebrow, topRight, topRightLogo, wordEng, title }) => (
       <Card>
         <CLEyebrow eyebrow={eyebrow} />
         <CLCoverTopRight topRightLogo={topRightLogo}>{topRight}</CLCoverTopRight>
-        <div style={{ position: 'absolute', left: 84, top: 740 }}>
-          <BrandInsightCloud size={28}>{cloudText}</BrandInsightCloud>
-        </div>
-        <CoverTitle x={84} y={840} w={912} title={title} titleSize={86} titleLineHeight={1.15} titleField="title" />
-        <div
-          style={{
-            position: 'absolute',
-            left: 84,
-            top: 1100,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontWeight: 500,
-            fontSize: 30,
-            letterSpacing: '0.16em',
-            color: '#000',
-            lineHeight: 1,
-          }}
-        >
-          {wordEng}
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            right: 84,
-            bottom: 84,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontSize: 28,
-            fontWeight: 500,
-            letterSpacing: '0.04em',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {page}
+        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
+          <div
+            data-cn-field="title"
+            data-cn-multiline="1"
+            style={{
+              fontWeight: 800,
+              fontSize: 84,  // 2줄 variant
+              lineHeight: 1.15,
+              letterSpacing: '-0.045em',
+              whiteSpace: 'pre-line',
+              wordBreak: 'keep-all',
+              overflowWrap: 'anywhere',
+            }}
+            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+          />
+          <div
+            data-cn-field="wordEng"
+            style={{
+              marginTop: 30,
+              fontFamily: CN_FONT_ARCHIVO,
+              fontWeight: 500,
+              fontSize: 32,
+              letterSpacing: '0.16em',
+              lineHeight: 1,
+            }}
+          >
+            {wordEng}
+          </div>
         </div>
       </Card>
     ),
@@ -266,10 +257,14 @@ export const CL_VARIANTS = [
             lineHeight: 1.5,
           }}
         >
-          <span style={{ background: `linear-gradient(transparent 62%, ${CN_COLORS.neon} 62%)`, padding: '0 4px' }}>
+          {/* 형광 강조와 뒤 텍스트 모두 인플레이스 클릭 편집 가능 */}
+          <span
+            data-cn-field="highlight"
+            style={{ background: `linear-gradient(transparent 62%, ${CN_COLORS.neon} 62%)`, padding: '0 4px' }}
+          >
             {highlight}
           </span>
-          <span>{highlightRest}</span>
+          <span data-cn-field="highlightRest">{highlightRest}</span>
         </div>
         <BodyText x={84} y={620} w={912} size={32} weight={500} lineHeight={1.7} field="body">
           {body}
@@ -377,6 +372,8 @@ export const CL_VARIANTS = [
         <CLEyebrow eyebrow={eyebrow} color="#fff" />
         <CLBodyTopRight color="#fff" topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
         <div
+          data-cn-field="body"
+          data-cn-multiline="1"
           style={{
             position: 'absolute',
             left: 84,

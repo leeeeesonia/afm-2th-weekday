@@ -102,43 +102,36 @@ export const BI_VARIANTS = [
         >
           {eyebrowSub}
         </span>
-        {/* 메인 타이틀 — 하단 anchor. 마지막 줄이 항상 y≈1041 (현재 1줄 위치)에 머무름.
-            줄이 늘어나면 위로 자동 확장 → wordEng (y=1078)와 안 겹침.
-            type 1 에세이 표지의 vAlign='bottom'과 같은 패턴. */}
-        <div
-          data-cn-field="title"
-          data-cn-multiline="1"
-          style={{
-            position: 'absolute',
-            left: 84,
-            bottom: 309,  // 1350 - 1041 = 309
-            width: 912,
-            fontFamily: CN_FONT,
-            fontWeight: 800,
-            fontSize: 88,
-            lineHeight: 1.15,
-            letterSpacing: '-0.045em',
-            whiteSpace: 'pre-line',
-            wordBreak: 'keep-all',
-            overflowWrap: 'anywhere',
-          }}
-          dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
-        />
-        <div
-          data-cn-field="wordEng"
-          style={{
-            position: 'absolute',
-            left: 84,
-            top: 1078,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontWeight: 500,
-            fontSize: 34,
-            letterSpacing: '0.18em',
-            color: '#000',
-            lineHeight: 1,
-          }}
-        >
-          {wordEng}
+        {/* T1 좌하단 패턴 — bottom anchored 블록 안에 title + wordEng (Archivo Narrow).
+            마지막 줄(wordEng)이 y=1150에 고정 → 1줄/2줄 모두 침범 없음. */}
+        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
+          <div
+            data-cn-field="title"
+            data-cn-multiline="1"
+            style={{
+              fontWeight: 800,
+              fontSize: 88,  // 1줄 variant
+              lineHeight: 1.15,
+              letterSpacing: '-0.045em',
+              whiteSpace: 'pre-line',
+              wordBreak: 'keep-all',
+              overflowWrap: 'anywhere',
+            }}
+            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+          />
+          <div
+            data-cn-field="wordEng"
+            style={{
+              marginTop: 30,
+              fontFamily: CN_FONT_ARCHIVO,
+              fontWeight: 500,
+              fontSize: 32,
+              letterSpacing: '0.18em',
+              lineHeight: 1,
+            }}
+          >
+            {wordEng}
+          </div>
         </div>
       </Card>
     ),
@@ -172,41 +165,35 @@ export const BI_VARIANTS = [
         >
           {eyebrowSub}
         </span>
-        {/* 2줄 타이틀 — 1줄 표지와 동일한 bottom anchor (309). 마지막 줄이 항상 같은 자리. */}
-        <div
-          data-cn-field="title"
-          data-cn-multiline="1"
-          style={{
-            position: 'absolute',
-            left: 84,
-            bottom: 309,
-            width: 912,
-            fontFamily: CN_FONT,
-            fontWeight: 800,
-            fontSize: 86,
-            lineHeight: 1.15,
-            letterSpacing: '-0.045em',
-            whiteSpace: 'pre-line',
-            wordBreak: 'keep-all',
-            overflowWrap: 'anywhere',
-          }}
-          dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
-        />
-        <div
-          data-cn-field="wordEng"
-          style={{
-            position: 'absolute',
-            left: 84,
-            top: 1078,
-            fontFamily: CN_FONT_ARCHIVO,
-            fontWeight: 500,
-            fontSize: 34,
-            letterSpacing: '0.18em',
-            color: '#000',
-            lineHeight: 1,
-          }}
-        >
-          {wordEng}
+        {/* 2줄 타이틀 — T1 좌하단 패턴, fontSize 84 (1줄 88보다 작음). */}
+        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
+          <div
+            data-cn-field="title"
+            data-cn-multiline="1"
+            style={{
+              fontWeight: 800,
+              fontSize: 84,  // 2줄 variant
+              lineHeight: 1.15,
+              letterSpacing: '-0.045em',
+              whiteSpace: 'pre-line',
+              wordBreak: 'keep-all',
+              overflowWrap: 'anywhere',
+            }}
+            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+          />
+          <div
+            data-cn-field="wordEng"
+            style={{
+              marginTop: 30,
+              fontFamily: CN_FONT_ARCHIVO,
+              fontWeight: 500,
+              fontSize: 32,
+              letterSpacing: '0.18em',
+              lineHeight: 1,
+            }}
+          >
+            {wordEng}
+          </div>
         </div>
       </Card>
     ),

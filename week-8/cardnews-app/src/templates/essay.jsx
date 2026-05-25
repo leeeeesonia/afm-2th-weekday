@@ -115,7 +115,7 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
             data-cn-field="subtitle"
             data-cn-multiline="1"
             style={{
-              marginTop: 24,
+              marginTop: 30,
               fontWeight: 500,
               fontSize: 32,
               lineHeight: 1.5,
