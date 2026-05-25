@@ -102,7 +102,28 @@ export const BI_VARIANTS = [
         >
           {eyebrowSub}
         </span>
-        <CoverTitle x={84} y={940} w={912} title={title} titleSize={88} titleLineHeight={1.15} titleField="title" />
+        {/* 메인 타이틀 — 하단 anchor. 마지막 줄이 항상 y≈1041 (현재 1줄 위치)에 머무름.
+            줄이 늘어나면 위로 자동 확장 → wordEng (y=1078)와 안 겹침.
+            type 1 에세이 표지의 vAlign='bottom'과 같은 패턴. */}
+        <div
+          data-cn-field="title"
+          data-cn-multiline="1"
+          style={{
+            position: 'absolute',
+            left: 84,
+            bottom: 309,  // 1350 - 1041 = 309
+            width: 912,
+            fontFamily: CN_FONT,
+            fontWeight: 800,
+            fontSize: 88,
+            lineHeight: 1.15,
+            letterSpacing: '-0.045em',
+            whiteSpace: 'pre-line',
+            wordBreak: 'keep-all',
+            overflowWrap: 'anywhere',
+          }}
+          dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+        />
         <div
           data-cn-field="wordEng"
           style={{
@@ -151,15 +172,14 @@ export const BI_VARIANTS = [
         >
           {eyebrowSub}
         </span>
-        {/* 2줄 타이틀 — 하단 정렬. bottom 기준으로 잡아서 한 줄이든 두 줄이든 wordEng와 안 겹침.
-            wordEng는 top:1078 (높이 ~34) → 약 y=1112까지 차지. 그 위로 28px 여백 두고 타이틀 끝점을 y=1050에 둠. */}
+        {/* 2줄 타이틀 — 1줄 표지와 동일한 bottom anchor (309). 마지막 줄이 항상 같은 자리. */}
         <div
           data-cn-field="title"
           data-cn-multiline="1"
           style={{
             position: 'absolute',
             left: 84,
-            bottom: 300,    // 1350 - 1050 = 300
+            bottom: 309,
             width: 912,
             fontFamily: CN_FONT,
             fontWeight: 800,
@@ -211,13 +231,15 @@ export const BI_VARIANTS = [
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로 니즈를 편하게
 답변해주세요!` },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, subhead, highlight, highlightRest, body }) => {
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, subhead, highlight, highlightRest, body, themeMode }) => {
       // 기존 프로젝트 호환: highlight + highlightRest 분리 필드가 있던 시절 데이터 → subhead HTML로 합치기
       const subheadHtml = subhead || (
         highlight || highlightRest
           ? `${highlight ? `<mark class="cn-hl">${highlight}</mark>` : ''}${highlightRest || ''}`
           : ''
       );
+      // subhead는 raw div라 Card 테마 색이 자동으로 안 옴 → themeMode로 직접 적용
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
       return (
         <Card>
           <BIEyebrow eyebrow={eyebrow} />
@@ -225,7 +247,7 @@ export const BI_VARIANTS = [
           <Heading01 x={84} y={220} w={912} size={56} field="heading">
             {heading}
           </Heading01>
-          {/* 소제목 — 형광·볼드는 캔버스에서 드래그 후 floating bar로 적용 */}
+          {/* 소제목 — 형광·볼드는 캔버스에서 드래그 후 floating bar로 적용. 색은 테마 따름. */}
           <div
             data-cn-field="subhead"
             data-cn-multiline="1"
@@ -241,6 +263,7 @@ export const BI_VARIANTS = [
               lineHeight: 1.5,
               whiteSpace: 'pre-line',
               wordBreak: 'keep-all',
+              color: fg,
             }}
             dangerouslySetInnerHTML={{ __html: subheadHtml }}
           />
