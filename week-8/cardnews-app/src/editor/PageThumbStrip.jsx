@@ -41,7 +41,7 @@ export function PageThumbStrip({ project }) {
             if (!variant) return null;
             const Comp = variant.Component;
             const themeMode = page.themeMode || 'light';
-            const props = { ...page.props, page: `${i + 1} / ${total}`, themeMode };
+            const props = { ...page.props, page: page.props.hidePageNumber ? '' : `${i + 1} / ${total}`, themeMode };
             const active = i === activePageIndex;
             const thumbBg = themeMode === 'dark' ? '#0A0A0A' : '#fff';
             return (

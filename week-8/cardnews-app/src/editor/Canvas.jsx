@@ -356,9 +356,9 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
   }
   const Comp = variant.Component;
 
-  // 페이지 번호 자동 주입
+  // 페이지 번호 자동 주입 — hidePageNumber 플래그가 true면 빈 문자열로 끔
   const total = project.pages.length;
-  const pageStr = `${pageIndex + 1} / ${total}`;
+  const pageStr = page.props.hidePageNumber ? '' : `${pageIndex + 1} / ${total}`;
   const themeMode = page.themeMode || 'light';
   const computedProps = { ...page.props, page: pageStr, themeMode };
   const overlays = page.overlays || [];

@@ -133,7 +133,7 @@ function GridView({ project, previewMode }) {
           if (!variant) return null;
           const Comp = variant.Component;
           const total = project.pages.length;
-          const props = { ...page.props, page: `${i + 1} / ${total}` };
+          const props = { ...page.props, page: page.props.hidePageNumber ? '' : `${i + 1} / ${total}` };
           return (
             <article key={page.id} className="surface-card overflow-hidden">
               <button

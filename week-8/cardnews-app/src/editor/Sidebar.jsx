@@ -86,6 +86,28 @@ export function Sidebar({ project, page, pageIndex }) {
               onPositionCommit={(v, opts) => updatePageProp(pageIndex, 'bgPhotoPosition', v, opts || {})}
               onScaleCommit={(v, opts) => updatePageProp(pageIndex, 'bgPhotoScale', v, opts || {})}
             />
+            {/* Type 1(에세이) 전용 — 우하단 페이지 표시 on/off (초안 단계에서 숨기고 싶을 때) */}
+            {tplId === 'essay' && (
+              <div>
+                <div className="t-cap text-meta-steel mb-1">우하단 페이지 표시</div>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updatePageProp(pageIndex, 'hidePageNumber', false, { commit: true })}
+                    className={'pill-tab ' + (!page.props.hidePageNumber ? 'is-active' : '')}
+                  >
+                    표시
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updatePageProp(pageIndex, 'hidePageNumber', true, { commit: true })}
+                    className={'pill-tab ' + (page.props.hidePageNumber ? 'is-active' : '')}
+                  >
+                    숨김
+                  </button>
+                </div>
+              </div>
+            )}
             {(variant.fields ?? []).map((f) => (
               <FieldEditor
                 key={f.key}
@@ -236,16 +258,23 @@ function BlockSidebar({ page, pageIndex, selectedIds }) {
                 value={block.props.borderRadius || 0}
                 onCommit={(v) => setProp('borderRadius', v, { commit: true })}
               />
-              {/* 테두리 — 있음/없음 토글. 있음=3px 검정 기본 */}
+              {/* 테두리 — 두껍게(3px) / 얇게(1px) / 없음(0) 3단계 */}
               <div>
                 <div className="t-cap text-meta-steel mb-1">테두리</div>
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid grid-cols-3 gap-1">
                   <button
                     type="button"
                     onClick={() => setProp('border', 3, { commit: true })}
-                    className={'pill-tab ' + ((block.props.border ?? 3) > 0 ? 'is-active' : '')}
+                    className={'pill-tab ' + ((block.props.border ?? 3) === 3 ? 'is-active' : '')}
                   >
-                    있음
+                    두껍게
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProp('border', 1, { commit: true })}
+                    className={'pill-tab ' + ((block.props.border ?? 3) === 1 ? 'is-active' : '')}
+                  >
+                    얇게
                   </button>
                   <button
                     type="button"
