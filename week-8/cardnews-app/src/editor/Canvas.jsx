@@ -168,6 +168,7 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
   const toggleSelectBlock = useProjectStore((s) => s.toggleSelectBlock);
   const clearSelection = useProjectStore((s) => s.clearSelection);
   const selectedBlockIds = useProjectStore((s) => s.selectedBlockIds);
+  const guideMode = useProjectStore((s) => s.guideMode);
   const initialRef = useRef('');
   const [activeEl, setActiveEl] = useState(null);
   const [marquee, setMarquee] = useState(null); // { x, y, w, h } 캔버스 좌표
@@ -356,15 +357,17 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
   }
   const Comp = variant.Component;
 
-  // 페이지 번호 자동 주입 — hidePageNumber 플래그가 true면 빈 문자열로 끔
+  // 페이지 번호 자동 주입 — project.hidePageNumber가 true면 빈 문자열 (전역 토글)
   const total = project.pages.length;
-  const pageStr = page.props.hidePageNumber ? '' : `${pageIndex + 1} / ${total}`;
+  const pageStr = project.hidePageNumber ? '' : `${pageIndex + 1} / ${total}`;
   const themeMode = page.themeMode || 'light';
   const computedProps = { ...page.props, page: pageStr, themeMode };
   const overlays = page.overlays || [];
 
   const sc = scale ?? 1;
-  const canvasBg = themeMode === 'dark' ? CN_THEMES.dark.bg : '#fff';
+  const canvasBg = themeMode === 'dark' ? CN_THEMES.dark.bg
+    : themeMode === 'pastel' ? CN_THEMES.pastel.bg
+    : '#fff';
 
   function handleSelectBlock(id, { shift }) {
     if (shift) toggleSelectBlock(id);
@@ -426,6 +429,8 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
             }}
           />
         )}
+        {/* 안전 영역 가이드 (84px bleed) — 토글 시 네온 선 + 블록이 밖으로 나가면 bleed 영역 반투명 */}
+        {guideMode && <SafeAreaGuide overlays={overlays} />}
         {/* 스냅 가이드 */}
         {snapGuides.map((g, i) => (
           <div
@@ -439,6 +444,53 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
         ))}
       </div>
       {editable && <FormatBar target={activeEl} />}
+    </div>
+  );
+}
+
+/* ─── SafeAreaGuide ─── 84px bleed 영역 가이드 */
+// 모든 템플릿이 좌·우·상·하 84px 마진 안에서 본문/eyebrow/캡션/페이지 표기를 사용.
+// 가이드 ON: 네온 점선으로 안전 영역 경계 표시.
+// 어느 블록이라도 이 경계 밖이면 bleed(외곽) 영역을 반투명 네온으로 강조 → 시각적 경고.
+const SAFE_MARGIN = 84;
+const NEON = '#AAFF00';
+
+function SafeAreaGuide({ overlays = [] }) {
+  const left = SAFE_MARGIN;
+  const top = SAFE_MARGIN;
+  const right = CARD_W - SAFE_MARGIN;
+  const bottom = CARD_H - SAFE_MARGIN;
+
+  const hasOverflow = overlays.some((b) => {
+    const w = typeof b.w === 'number' ? b.w : 0;
+    const h = typeof b.h === 'number' ? b.h : 0;
+    return b.x < left || b.x + w > right || b.y < top || b.y + h > bottom;
+  });
+
+  const bleedBg = 'rgba(170, 255, 0, 0.22)';
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 950 }}>
+      {/* bleed 영역 반투명 강조 — 블록이 밖으로 나갔을 때만 */}
+      {hasOverflow && (
+        <>
+          <div style={{ position: 'absolute', left: 0, top: 0, right: 0, height: top, background: bleedBg }} />
+          <div style={{ position: 'absolute', left: 0, bottom: 0, right: 0, height: SAFE_MARGIN, background: bleedBg }} />
+          <div style={{ position: 'absolute', left: 0, top, bottom: SAFE_MARGIN, width: left, background: bleedBg }} />
+          <div style={{ position: 'absolute', right: 0, top, bottom: SAFE_MARGIN, width: SAFE_MARGIN, background: bleedBg }} />
+        </>
+      )}
+      {/* 안전 영역 4선 — 네온 dashed */}
+      <div
+        style={{
+          position: 'absolute',
+          left,
+          top,
+          width: right - left,
+          height: bottom - top,
+          border: `2px dashed ${NEON}`,
+          boxSizing: 'border-box',
+        }}
+      />
     </div>
   );
 }

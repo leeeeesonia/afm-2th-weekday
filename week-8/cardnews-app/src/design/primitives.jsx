@@ -53,7 +53,9 @@ export function Card({ children, themeMode: explicitTheme, bgPhoto: explicitBg, 
   // bg는 string(src) 또는 {src,scale,position} 객체. 호환성 위해 둘 다 처리.
   const bgObj = typeof bg === 'string' ? { src: bg, scale: 1, position: 'center' } : (bg || {});
   const bgSrc = bgObj.src || '';
-  const themeBg = mode === 'dark' ? CN_THEMES.dark.bg : CN_THEMES.light.bg;
+  const themeBg = mode === 'dark' ? CN_THEMES.dark.bg
+    : mode === 'pastel' ? CN_THEMES.pastel.bg
+    : CN_THEMES.light.bg;
   return (
     <ThemeContext.Provider value={mode}>
       <div
@@ -71,9 +73,42 @@ export function Card({ children, themeMode: explicitTheme, bgPhoto: explicitBg, 
       >
         {/* bgPhoto 레이어 — 모든 children 뒤에 깔림. variant가 자체 FullBleedPhoto를 가지면 그 위에 덮어씌워짐. */}
         {bgSrc ? <FullBleedPhoto src={bgSrc} scale={bgObj.scale} position={bgObj.position} /> : null}
+        {/* 파스텔 모드 — bgPhoto/배경 위에 크라프트지 질감 오버레이. text는 위에 별도 children으로 렌더되어 영향 없음. */}
+        {mode === 'pastel' && <KraftPaperTexture />}
         {children}
       </div>
     </ThemeContext.Provider>
+  );
+}
+
+/* ─── KraftPaperTexture ─── 파스텔 모드 전용 거친 질감 오버레이 */
+// SVG fractal noise + 미세한 갈색-회색 컬러 → 크라프트지 질감. mix-blend-mode: multiply로 배경/사진과 자연스럽게 합성.
+const KRAFT_NOISE_SVG =
+  `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'>` +
+  `<filter id='n'>` +
+  `<feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/>` +
+  `<feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.36  0 0 0 0 0.26  0 0 0 0.55 0'/>` +
+  `</filter>` +
+  `<rect width='100%' height='100%' filter='url(#n)'/>` +
+  `</svg>`;
+const KRAFT_NOISE_URL = `url("data:image/svg+xml;utf8,${encodeURIComponent(KRAFT_NOISE_SVG)}")`;
+
+export function KraftPaperTexture() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: KRAFT_NOISE_URL,
+        backgroundRepeat: 'repeat',
+        mixBlendMode: 'multiply',
+        opacity: 0.32,
+        pointerEvents: 'none',
+        // 텍스트보다 아래·이미지보다 위
+        zIndex: 1,
+      }}
+    />
   );
 }
 

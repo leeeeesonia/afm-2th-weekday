@@ -2,7 +2,7 @@
 // useRef로 latest 함수 참조 → deps 변경에 의한 cleanup 방지 (drag 끊김 fix).
 import React, { useRef, useEffect } from 'react';
 import { useProjectStore } from '../store/useProjectStore.js';
-import { STICKER_REGISTRY } from '../design/stickers.jsx';
+import { STICKER_REGISTRY, STICKER_PLACEHOLDERS, ALL_STICKERS } from '../design/stickers.jsx';
 import { CN_COLORS } from '../design/tokens.js';
 import { uploadImage } from '../lib/uploadImage.js';
 
@@ -192,8 +192,59 @@ function BlockContent({ block, editingText }) {
       />
     );
   }
+  if (type === 'line') {
+    const w = typeof block.w === 'number' ? block.w : 200;
+    const h = typeof block.h === 'number' ? block.h : 20;
+    const sw = props.strokeWidth || 1;
+    const color = props.color || '#000000';
+    const dotR = props.dotRadius || 4;
+    const cy = h / 2;
+    const dashed = props.style === 'dashed';
+    const startX = dotR;
+    const endX = Math.max(dotR, w - dotR);
+    const HIT_R = 10; // endpoint 드래그 hit zone (visible dot보다 큼)
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: 'block', overflow: 'visible' }}>
+        {/* 본체 hit-area — 빈 공간 클릭으로 라인 선택/이동 */}
+        <rect width={w} height={h} fill="transparent" />
+        <line
+          x1={startX}
+          y1={cy}
+          x2={endX}
+          y2={cy}
+          stroke={color}
+          strokeWidth={sw}
+          strokeLinecap="round"
+          {...(dashed ? { strokeDasharray: `${props.dashLen || 10} ${props.dashGap || 3}` } : {})}
+        />
+        {/* 끝점에만 동그라미 표시 (시작점은 점 없음) */}
+        <circle cx={endX} cy={cy} r={dotR} fill={color} />
+        {/* 시작점 hit zone — 동그라미 없지만 드래그로 잡을 수 있게 투명 원 */}
+        <circle
+          cx={startX}
+          cy={cy}
+          r={HIT_R}
+          fill="transparent"
+          pointerEvents="all"
+          data-line-endpoint="start"
+          style={{ cursor: 'crosshair' }}
+        />
+        {/* 끝점 hit zone — 동그라미 위에 더 큰 투명 원 */}
+        <circle
+          cx={endX}
+          cy={cy}
+          r={HIT_R}
+          fill="transparent"
+          pointerEvents="all"
+          data-line-endpoint="end"
+          style={{ cursor: 'crosshair' }}
+        />
+      </svg>
+    );
+  }
   if (type === 'sticker') {
-    const entry = STICKER_REGISTRY.find((s) => s.kind === props.kind);
+    // 레거시 brandInsightCloud 포함 — ALL_STICKERS로 검색
+    const entry = ALL_STICKERS.find((s) => s.kind === props.kind);
     if (!entry) return null;
     const Comp = entry.Component;
     const { kind, ...rest } = props;
@@ -233,6 +284,9 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
       if (e.target.closest('[data-block-text]') && e.target.getAttribute('contenteditable') === 'true') {
         return;
       }
+      if (e.target.closest('[data-cn-sticker-text]') && e.target.getAttribute('contenteditable') === 'true') {
+        return;
+      }
       // 카메라 버튼 / 인플레이스 컨트롤 위 클릭이면 drag 시작 안 함
       if (e.target.closest('[data-cn-control]')) return;
       if (e.defaultPrevented) return;
@@ -245,6 +299,12 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
       const rotate = e.target.closest('[data-rotate]');
       if (rotate) {
         startRotate(e);
+        return;
+      }
+      // 라인 endpoint 드래그 — 시작점/끝점을 잡아당겨 길이 + 회전 동시 조정
+      const lineEndpoint = e.target.closest('[data-line-endpoint]');
+      if (lineEndpoint && latestRef.current.block.type === 'line') {
+        startLineEndpointDrag(e, lineEndpoint.dataset.lineEndpoint);
         return;
       }
       e.stopPropagation();
@@ -260,6 +320,11 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         return;
       }
 
+      // 스티커 텍스트 / 텍스트 블록 영역 클릭 — 단일 클릭으로 인라인 편집 진입(움직임 없을 때).
+      // 움직이면 드래그 이동, 안 움직이면 onUp에서 편집 모드로 전환.
+      const stickerTextEl = b.type === 'sticker' ? e.target.closest('[data-cn-sticker-text]') : null;
+      const textBlockEl = b.type === 'text' ? e.target.closest('[data-block-text]') : null;
+
       dragState = {
         startX: e.clientX,
         startY: e.clientY,
@@ -267,6 +332,9 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         origY: b.y,
         type: 'move',
         pointerId: e.pointerId,
+        stickerTextEl,
+        textBlockEl,
+        didMove: false,
       };
       attachDragListeners(e.pointerId);
     }
@@ -301,6 +369,42 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         cy,
         startAngle: Math.atan2(e.clientY - cy, e.clientX - cx) - ((b.rotation || 0) * Math.PI) / 180,
         type: 'rotate',
+        pointerId: e.pointerId,
+      };
+      attachDragListeners(e.pointerId);
+    }
+
+    // 라인 endpoint 드래그 — start 또는 end 점을 마우스로 이동.
+    // 반대편 endpoint는 고정, 드래그하는 점이 마우스를 따라감 → 길이/회전이 함께 갱신.
+    function startLineEndpointDrag(e, which) {
+      e.stopPropagation();
+      const { block: b, onSelect } = getLatest();
+      onSelect(b.id, { shift: e.shiftKey });
+      if (b.locked) return;
+      const w = typeof b.w === 'number' ? b.w : 200;
+      const h = typeof b.h === 'number' ? b.h : 20;
+      const dotR = b.props.dotRadius || 4;
+      const halfL = (w - 2 * dotR) / 2;
+      const cx = b.x + w / 2;
+      const cy = b.y + h / 2;
+      const rad = ((b.rotation || 0) * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const startPt = { x: cx - halfL * cos, y: cy - halfL * sin };
+      const endPt = { x: cx + halfL * cos, y: cy + halfL * sin };
+      const other = which === 'end' ? startPt : endPt;
+      const dragged = which === 'end' ? endPt : startPt;
+      dragState = {
+        startX: e.clientX,
+        startY: e.clientY,
+        otherX: other.x,
+        otherY: other.y,
+        origDraggedX: dragged.x,
+        origDraggedY: dragged.y,
+        h,
+        dotR,
+        which,
+        type: 'line-endpoint',
         pointerId: e.pointerId,
       };
       attachDragListeners(e.pointerId);
@@ -382,6 +486,11 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
       if (dragState.type === 'move') {
         const dx = (e.clientX - dragState.startX) / sc;
         const dy = (e.clientY - dragState.startY) / sc;
+        // 스티커/텍스트 블록 텍스트 클릭은 click vs drag 구분 — 4px 이내는 클릭, 위치 안 바꿈
+        if ((dragState.stickerTextEl || dragState.textBlockEl) && !dragState.didMove) {
+          if (Math.hypot(e.clientX - dragState.startX, e.clientY - dragState.startY) < 4) return;
+          dragState.didMove = true;
+        }
         const sx = e.shiftKey ? (Math.abs(dx) > Math.abs(dy) ? dx : 0) : dx;
         const sy = e.shiftKey ? (Math.abs(dy) >= Math.abs(dx) ? dy : 0) : dy;
         let newX = dragState.origX + sx;
@@ -428,6 +537,27 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         let deg = (ang * 180) / Math.PI;
         if (e.shiftKey) deg = Math.round(deg / 15) * 15;
         updateBlock(b.id, { rotation: deg });
+      } else if (dragState.type === 'line-endpoint') {
+        const dx = (e.clientX - dragState.startX) / sc;
+        const dy = (e.clientY - dragState.startY) / sc;
+        const draggedX = dragState.origDraggedX + dx;
+        const draggedY = dragState.origDraggedY + dy;
+        const { otherX, otherY, h: bh, dotR, which } = dragState;
+        const startX_pt = which === 'end' ? otherX : draggedX;
+        const startY_pt = which === 'end' ? otherY : draggedY;
+        const endX_pt = which === 'end' ? draggedX : otherX;
+        const endY_pt = which === 'end' ? draggedY : otherY;
+        const len = Math.hypot(endX_pt - startX_pt, endY_pt - startY_pt);
+        const angleDeg = (Math.atan2(endY_pt - startY_pt, endX_pt - startX_pt) * 180) / Math.PI;
+        const newCx = (startX_pt + endX_pt) / 2;
+        const newCy = (startY_pt + endY_pt) / 2;
+        const newW = Math.max(20, len + 2 * dotR);
+        updateBlock(b.id, {
+          x: newCx - newW / 2,
+          y: newCy - bh / 2,
+          w: newW,
+          rotation: angleDeg,
+        });
       }
     }
 
@@ -437,11 +567,148 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         try {
           if (dragState.pointerId != null) el.releasePointerCapture?.(dragState.pointerId);
         } catch {}
+        // 스티커 텍스트 클릭 — 움직임 없었으면 인라인 편집 모드 진입
+        if (dragState.stickerTextEl && !dragState.didMove) {
+          startStickerEdit(dragState.stickerTextEl);
+          dragState = null;
+          publishSnapGuides([]);
+          detachDragListeners();
+          return;
+        }
+        // 텍스트 블록 클릭 — 움직임 없었으면 contentEditable 편집 모드 진입
+        if (dragState.textBlockEl && !dragState.didMove) {
+          // 사이드바 textarea가 포커스 중이면 먼저 flush
+          const focused = document.activeElement;
+          if (focused && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT')) {
+            focused.blur();
+          }
+          setEditingText(true);
+          dragState = null;
+          publishSnapGuides([]);
+          detachDragListeners();
+          return;
+        }
         updateBlock(b.id, {}, { commit: true });
         dragState = null;
         publishSnapGuides([]);
       }
       detachDragListeners();
+    }
+
+    // 스티커 텍스트 인라인 편집 — children 또는 line-idx 모드 지원.
+    //
+    // 처리 순서가 중요:
+    //   1) 사이드바 textarea/input이 포커스 중이면 먼저 blur → onChange/onBlur 핸들러가 최신값을 store에 커밋
+    //   2) store에서 직접 최신 block 읽기 (React render 지연으로 latestRef가 stale일 수 있음)
+    //   3) placeholder 클릭은 inner를 비우고 hasInput 플래그로 실제 타이핑 여부 추적
+    //   4) commit 시 빈 결과면 DOM을 placeholder 상태로 직접 복구 (React vDOM이 동일해서 reconcile 스킵하는 케이스 방어)
+    function startStickerEdit(inner) {
+      // 1) 다른 입력 강제 flush
+      const focused = document.activeElement;
+      if (focused && focused !== inner && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT')) {
+        focused.blur();
+      }
+
+      // 2) store에서 직접 최신 block 읽기
+      const state = useProjectStore.getState();
+      const proj = state.projects.find((p) => p.id === state.activeProjectId);
+      const pg = proj?.pages[state.activePageIndex];
+      const myId = latestRef.current.block.id;
+      const liveBlock = pg?.overlays.find((bb) => bb.id === myId) || latestRef.current.block;
+
+      const lineIdxStr = inner.dataset.cnStickerLineIdx;
+      const isLineMode = lineIdxStr != null && lineIdxStr !== '';
+      const lineIdx = isLineMode ? Number(lineIdxStr) : -1;
+      const wasPlaceholder = inner.dataset.cnStickerPlaceholder === '1';
+      const stickerKind = liveBlock.props.kind;
+      const placeholderText = STICKER_PLACEHOLDERS[stickerKind] || '';
+
+      let initial = '';
+      if (!wasPlaceholder) {
+        if (isLineMode) {
+          const raw = liveBlock.props.children;
+          if (typeof raw === 'string' && raw.length > 0) {
+            initial = raw.split('\n')[lineIdx] || '';
+          } else if (Array.isArray(liveBlock.props.lines)) {
+            initial = liveBlock.props.lines[lineIdx] || '';
+          }
+        } else {
+          initial = liveBlock.props.children || '';
+        }
+      }
+
+      inner.setAttribute('contenteditable', 'true');
+      inner.setAttribute('data-cn-sticker-placeholder', '0');
+      inner.style.opacity = '1';
+      // 3) placeholder 클릭은 비워서 새로 입력 시작, 실제 텍스트는 그대로 표시
+      inner.innerText = wasPlaceholder ? '' : initial;
+
+      let hasInput = false;
+      function onInput() { hasInput = true; }
+
+      requestAnimationFrame(() => {
+        inner.focus();
+        if (!wasPlaceholder && initial) {
+          const range = document.createRange();
+          range.selectNodeContents(inner);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      });
+
+      function commit() {
+        // 실제 텍스트 편집 — inner.innerText 그대로 (사용자가 명시적으로 지웠으면 '').
+        // placeholder 클릭 후 아무것도 안 친 경우만 hasInput=false로 빈 commit (= placeholder 복귀).
+        // 이 분기 없이 무조건 hasInput을 보면, 기존 텍스트 위 클릭하고 안 친 채 blur할 때 텍스트가 사라지는 버그.
+        const text = wasPlaceholder
+          ? (hasInput ? inner.innerText : '')
+          : inner.innerText;
+        const { updateBlock: ub, block: bb } = getLatest();
+        if (isLineMode) {
+          let arr;
+          if (typeof bb.props.children === 'string' && bb.props.children.length > 0) {
+            arr = bb.props.children.split('\n');
+          } else if (Array.isArray(bb.props.lines)) {
+            arr = bb.props.lines.slice();
+          } else {
+            arr = [];
+          }
+          while (arr.length <= lineIdx) arr.push('');
+          arr[lineIdx] = text;
+          while (arr.length > 1 && arr[arr.length - 1] === '') arr.pop();
+          ub(bb.id, { props: { children: arr.join('\n'), lines: undefined } }, { commit: true });
+        } else {
+          ub(bb.id, { props: { children: text } }, { commit: true });
+        }
+        inner.removeAttribute('contenteditable');
+        inner.removeEventListener('blur', commit);
+        inner.removeEventListener('keydown', onKey);
+        inner.removeEventListener('input', onInput);
+
+        // 4) 빈 commit이면 DOM을 placeholder 상태로 복구
+        //    React vDOM은 {children=''} → !children === true → placeholder 그대로라 DOM 업데이트 스킵.
+        //    수동 복구하지 않으면 박스가 빈 채 박제됨.
+        if (!text && placeholderText) {
+          inner.innerText = placeholderText;
+          inner.style.opacity = '0.4';
+          inner.setAttribute('data-cn-sticker-placeholder', '1');
+        }
+      }
+      function onKey(ev) {
+        if (ev.key === 'Escape') {
+          hasInput = false;
+          inner.blur();
+        } else if (ev.key === 'Enter' && !ev.shiftKey && inner.style.whiteSpace === 'nowrap') {
+          ev.preventDefault();
+          inner.blur();
+        }
+        ev.stopPropagation();
+      }
+      inner.addEventListener('input', onInput);
+      inner.addEventListener('blur', commit);
+      inner.addEventListener('keydown', onKey);
     }
 
     function onDblClick(e) {
@@ -450,38 +717,11 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         e.stopPropagation();
         setEditingText(true);
       } else if (b.type === 'sticker') {
-        // 스티커 안 텍스트 부분 인플레이스 편집
+        // 스티커는 단일 클릭으로도 진입 가능하지만 dblclick도 호환 유지
         const inner = e.target.closest('[data-cn-sticker-text]');
         if (inner) {
           e.stopPropagation();
-          const initial = b.props.children || '';
-          inner.setAttribute('contenteditable', 'true');
-          inner.innerText = initial;
-          requestAnimationFrame(() => {
-            inner.focus();
-            const range = document.createRange();
-            range.selectNodeContents(inner);
-            range.collapse(false);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-          });
-          function onBlur() {
-            const { updateBlock, block: bb } = getLatest();
-            updateBlock(bb.id, { props: { children: inner.innerText } }, { commit: true });
-            inner.removeAttribute('contenteditable');
-            inner.removeEventListener('blur', onBlur);
-            inner.removeEventListener('keydown', onKey);
-          }
-          function onKey(ev) {
-            if (ev.key === 'Escape') {
-              inner.innerText = initial;
-              inner.blur();
-            }
-            ev.stopPropagation();
-          }
-          inner.addEventListener('blur', onBlur);
-          inner.addEventListener('keydown', onKey);
+          startStickerEdit(inner);
         }
       }
     }
@@ -571,7 +811,8 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
       )}
       {isSelected && !block.locked && !editingText && (
         <>
-          {HANDLES.map((hh) => (
+          {/* 라인은 box resize 핸들 대신 endpoint 핸들(SVG 안)로 길이/회전 동시 조정 */}
+          {block.type !== 'line' && HANDLES.map((hh) => (
             <span
               key={hh.id}
               data-handle={hh.id}

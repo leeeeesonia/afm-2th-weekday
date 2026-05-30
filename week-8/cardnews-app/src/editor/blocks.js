@@ -2,7 +2,7 @@
 // type: 'text' | 'image' | 'sticker' | 'shape'
 import { CARD_W, CARD_H } from '../design/tokens.js';
 
-export const BLOCK_TYPES = ['text', 'image', 'sticker', 'shape'];
+export const BLOCK_TYPES = ['text', 'image', 'sticker', 'shape', 'line'];
 
 const uid = (p = 'b') => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -20,8 +20,8 @@ export function newTextBlock(props = {}) {
     hidden: false,
     props: {
       html: '여기에 텍스트를 입력하세요',
-      fontSize: 56,
-      fontWeight: 700,
+      fontSize: 30,
+      fontWeight: 500,
       color: '#000000',
       align: 'left',
       lineHeight: 1.2,
@@ -68,6 +68,31 @@ export function newStickerBlock(kind = 'subSticker', props = {}) {
     locked: false,
     hidden: false,
     props: { kind, ...props },
+  };
+}
+
+// 라인 — 1px 두께, 양 끝에 점, dashed면 20/6 패턴. 가로로 생성되고 회전·리사이즈로 자유롭게 배치.
+export function newLineBlock(props = {}) {
+  return {
+    id: uid('blk'),
+    type: 'line',
+    x: 240,
+    y: 600,
+    w: 600,
+    h: 20, // 양 끝 점(반경 ~4) 포함 + 라인 1px가 가운데
+    rotation: 0,
+    z: 10,
+    locked: false,
+    hidden: false,
+    props: {
+      style: 'solid',     // 'solid' | 'dashed'
+      strokeWidth: 1,
+      color: '#000000',
+      dotRadius: 4,
+      dashLen: 10,        // 기존 20에서 2배 촘촘 (10/3)
+      dashGap: 3,
+      ...props,
+    },
   };
 }
 

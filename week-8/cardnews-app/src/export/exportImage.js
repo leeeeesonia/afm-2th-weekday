@@ -1,5 +1,5 @@
 // html-to-image 래퍼 — 단일 페이지/전체 ZIP, 1x/2x/3x scale 지원.
-import { toJpeg } from 'html-to-image';
+import { toJpeg, toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { CARD_W, CARD_H } from '../design/tokens.js';
@@ -54,6 +54,61 @@ async function renderPageToBlob(pageId, scale = 2) {
 export async function exportPageToImage(pageId, scale = 2, filename = 'cardnews') {
   const blob = await renderPageToBlob(pageId, scale);
   saveAs(blob, `${filename}.jpg`);
+}
+
+// PNG export. transparent=true면 캔버스 단색 배경(라이트=흰/다크=검정) 제거 → 알파 PNG.
+// 핵심: Canvas 루트 + 내부 <Card data-cn-theme> 모두 자체 background를 갖고 있어 둘 다 꺼야 함.
+// bgPhoto는 FullBleedPhoto가 별도 자식으로 렌더 → 그대로 유지됨.
+async function renderPageToPngBlob(pageId, scale = 2, transparent = false) {
+  await ensureFonts();
+  const el = findOriginalEl(pageId);
+  if (!el) throw new Error('현재 페이지를 찾을 수 없습니다 (slide 뷰에서 export 가능)');
+
+  const restoreFns = [];
+  function override(node, props) {
+    const prev = {};
+    for (const k of Object.keys(props)) prev[k] = node.style[k];
+    Object.assign(node.style, props);
+    restoreFns.push(() => Object.assign(node.style, prev));
+  }
+
+  // 1) 스케일 끔 + 캔버스 루트 박스섀도 제거
+  override(el, {
+    transform: 'none',
+    transformOrigin: 'top left',
+    boxShadow: transparent ? 'none' : el.style.boxShadow,
+    background: transparent ? 'transparent' : el.style.background,
+    backgroundColor: transparent ? 'transparent' : el.style.backgroundColor,
+  });
+
+  // 2) 투명 모드 — 내부 Card([data-cn-theme]) + BackgroundFill 등 후손 노드의 단색 배경 전부 끔
+  if (transparent) {
+    el.querySelectorAll('[data-cn-theme]').forEach((node) => {
+      override(node, { background: 'transparent', backgroundColor: 'transparent' });
+    });
+  }
+
+  try {
+    const dataUrl = await toPng(el, {
+      width: CARD_W,
+      height: CARD_H,
+      canvasWidth: CARD_W * scale,
+      canvasHeight: CARD_H * scale,
+      pixelRatio: scale,
+      backgroundColor: transparent ? undefined : '#FFFFFF',
+      cacheBust: true,
+    });
+    const res = await fetch(dataUrl);
+    return await res.blob();
+  } finally {
+    for (const fn of restoreFns) fn();
+  }
+}
+
+export async function exportPageToPng(pageId, scale = 2, filename = 'cardnews', transparent = false) {
+  const blob = await renderPageToPngBlob(pageId, scale, transparent);
+  const suffix = transparent ? '-transparent' : '';
+  saveAs(blob, `${filename}${suffix}.png`);
 }
 
 // 전체 페이지 ZIP — slide 뷰에서만 동작.

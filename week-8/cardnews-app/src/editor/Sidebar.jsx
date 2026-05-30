@@ -6,6 +6,7 @@ import { useProjectStore } from '../store/useProjectStore.js';
 import { getTemplate, getVariant, TEMPLATES } from '../templates/registry.js';
 import { CARD_W, CARD_H } from '../design/tokens.js';
 import { uploadImage } from '../lib/uploadImage.js';
+import { STICKER_PLACEHOLDERS } from '../design/stickers.jsx';
 
 // HTML → plain text (br → \n, 나머지 태그 제거)
 function stripHtml(html) {
@@ -23,10 +24,14 @@ function hasMarkup(html) {
   return /<(b|strong|mark|i|em|span)(\s|>)/i.test(html);
 }
 
+// 워드마크 자리(우상단 브랜드/워드마크) 필드 키 — 템플릿별로 이름이 다름
+const WORDMARK_FIELD_KEYS = new Set(['wordmark', 'brand', 'topRight']);
+
 export function Sidebar({ project, page, pageIndex }) {
   const updatePageProp = useProjectStore((s) => s.updatePageProp);
   const changeVariant = useProjectStore((s) => s.changeVariant);
   const applyToAllPages = useProjectStore((s) => s.applyToAllPages);
+  const setProjectHidePageNumber = useProjectStore((s) => s.setProjectHidePageNumber);
   const selectedBlockIds = useProjectStore((s) => s.selectedBlockIds);
   const [tab, setTab] = useState('edit');
 
@@ -86,38 +91,32 @@ export function Sidebar({ project, page, pageIndex }) {
               onPositionCommit={(v, opts) => updatePageProp(pageIndex, 'bgPhotoPosition', v, opts || {})}
               onScaleCommit={(v, opts) => updatePageProp(pageIndex, 'bgPhotoScale', v, opts || {})}
             />
-            {/* Type 1(에세이) 전용 — 우하단 페이지 표시 on/off (초안 단계에서 숨기고 싶을 때) */}
-            {tplId === 'essay' && (
-              <div>
-                <div className="t-cap text-meta-steel mb-1">우하단 페이지 표시</div>
-                <div className="grid grid-cols-2 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => updatePageProp(pageIndex, 'hidePageNumber', false, { commit: true })}
-                    className={'pill-tab ' + (!page.props.hidePageNumber ? 'is-active' : '')}
-                  >
-                    표시
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updatePageProp(pageIndex, 'hidePageNumber', true, { commit: true })}
-                    className={'pill-tab ' + (page.props.hidePageNumber ? 'is-active' : '')}
-                  >
-                    숨김
-                  </button>
-                </div>
-              </div>
-            )}
-            {(variant.fields ?? []).map((f) => (
-              <FieldEditor
-                key={f.key}
-                field={f}
-                value={page.props[f.key] ?? ''}
-                onChange={(v) => updatePageProp(pageIndex, f.key, v)}
-                onCommit={(v) => updatePageProp(pageIndex, f.key, v, { commit: true })}
-                onApplyAll={() => applyToAllPages(f.key, page.props[f.key])}
-              />
-            ))}
+            {(() => {
+              const fields = variant.fields ?? [];
+              const hasWordmarkField = fields.some((f) => WORDMARK_FIELD_KEYS.has(f.key));
+              const out = [];
+              for (const f of fields) {
+                out.push(
+                  <FieldEditor
+                    key={f.key}
+                    field={f}
+                    value={page.props[f.key] ?? ''}
+                    onChange={(v) => updatePageProp(pageIndex, f.key, v)}
+                    onCommit={(v) => updatePageProp(pageIndex, f.key, v, { commit: true })}
+                    onApplyAll={() => applyToAllPages(f.key, page.props[f.key])}
+                  />
+                );
+                // 워드마크 자리(우상단) 바로 아래에 페이지 표시 토글 — 전체 페이지 일괄 (모든 템플릿 공통)
+                if (WORDMARK_FIELD_KEYS.has(f.key)) {
+                  out.push(<PageNumberToggle key="__page_toggle" project={project} setHide={setProjectHidePageNumber} />);
+                }
+              }
+              // 워드마크 필드가 없는 variant라도(아웃트로 등) 토글은 노출 — 필드 목록 끝에 폴백
+              if (!hasWordmarkField) {
+                out.push(<PageNumberToggle key="__page_toggle" project={project} setHide={setProjectHidePageNumber} />);
+              }
+              return out;
+            })()}
           </>
         )}
 
@@ -192,9 +191,12 @@ function BlockSidebar({ page, pageIndex, selectedIds }) {
           <div>
             <div className="t-cap-b text-meta-steel mb-2">텍스트</div>
             <div className="space-y-2">
+              {/* controlled — onChange로 store 즉시 동기(history X), onBlur에서만 history commit.
+                  사이드바 타이핑 중 캔버스 클릭해도 최신값이 항상 store에 있음. */}
               <textarea
                 className="field"
                 rows={3}
+                onKeyDown={(e) => e.stopPropagation()}
                 value={(block.props.html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')}
                 onChange={(e) => setProp('html', e.target.value.replace(/\n/g, '<br>'))}
                 onBlur={(e) => setProp('html', e.target.value.replace(/\n/g, '<br>'), { commit: true })}
@@ -205,11 +207,20 @@ function BlockSidebar({ page, pageIndex, selectedIds }) {
                   value={block.props.fontSize}
                   onCommit={(v) => setProp('fontSize', v, { commit: true })}
                 />
-                <NumberInput
-                  label="굵기"
-                  value={block.props.fontWeight}
-                  onCommit={(v) => setProp('fontWeight', v, { commit: true })}
-                />
+                {/* Pretendard 무게 드랍다운 — Bold(700)/Medium(500)/Regular(400)/Light(300) */}
+                <div>
+                  <div className="t-cap text-meta-steel mb-1">굵기</div>
+                  <select
+                    className="field"
+                    value={String(block.props.fontWeight ?? 500)}
+                    onChange={(e) => setProp('fontWeight', Number(e.target.value), { commit: true })}
+                  >
+                    <option value="700">Bold</option>
+                    <option value="500">Medium</option>
+                    <option value="400">Regular</option>
+                    <option value="300">Light</option>
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-1">
                 {['left', 'center', 'right'].map((a) => (
@@ -227,6 +238,8 @@ function BlockSidebar({ page, pageIndex, selectedIds }) {
                 value={block.props.color}
                 onCommit={(v) => setProp('color', v, { commit: true })}
               />
+              {/* 글자색 ↔ 레이어 사이 — 텍스트 색상 팔레트 */}
+              <TextColorPalette block={block} setProp={setProp} />
             </div>
           </div>
         )}
@@ -289,6 +302,45 @@ function BlockSidebar({ page, pageIndex, selectedIds }) {
           </div>
         )}
 
+        {block.type === 'line' && (
+          <div>
+            <div className="t-cap-b text-meta-steel mb-2">라인</div>
+            <div className="space-y-2">
+              <div>
+                <div className="t-cap text-meta-steel mb-1">스타일</div>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setProp('style', 'solid', { commit: true })}
+                    className={'pill-tab ' + ((block.props.style || 'solid') === 'solid' ? 'is-active' : '')}
+                  >
+                    실선
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProp('style', 'dashed', { commit: true })}
+                    className={'pill-tab ' + (block.props.style === 'dashed' ? 'is-active' : '')}
+                  >
+                    점선
+                  </button>
+                </div>
+              </div>
+              <ColorInput
+                label="색상"
+                value={block.props.color}
+                onCommit={(v) => setProp('color', v, { commit: true })}
+              />
+              {/* 텍스트 블록과 동일 팔레트 — color prop 1개만 set하면 됨 */}
+              <TextColorPalette block={block} setProp={setProp} />
+              <NumberInput
+                label="두께(px)"
+                value={block.props.strokeWidth ?? 1}
+                onCommit={(v) => setProp('strokeWidth', Math.max(1, v || 1), { commit: true })}
+              />
+            </div>
+          </div>
+        )}
+
         {block.type === 'shape' && (
           <div>
             <div className="t-cap-b text-meta-steel mb-2">도형</div>
@@ -311,31 +363,87 @@ function BlockSidebar({ page, pageIndex, selectedIds }) {
         {block.type === 'sticker' && (
           <div onMouseDown={(e) => e.stopPropagation()}>
             <div className="t-cap-b text-meta-steel mb-2">스티커 — {block.props.kind}</div>
-            {block.props.variant !== undefined && (
-              <div className="mt-2 mb-3 flex gap-1">
-                {['black', 'lemon', 'neon', 'white'].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProp('variant', v, { commit: true });
-                    }}
-                    className={'pill-tab flex-1 ' + (block.props.variant === v ? 'is-active' : '')}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            )}
-            <label className="t-cap text-meta-steel">텍스트 (Shift+Enter 줄바꿈)</label>
+            {/* subFrame/subSticker는 팔레트로 대체되어 variant pill-tab 숨김 */}
+            {block.props.variant !== undefined &&
+              block.props.kind !== 'subFrame' &&
+              block.props.kind !== 'subSticker' && (
+                <div className="mt-2 mb-3 flex gap-1">
+                  {['black', 'lemon', 'neon', 'white'].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProp('variant', v, { commit: true });
+                      }}
+                      className={'pill-tab flex-1 ' + (block.props.variant === v ? 'is-active' : '')}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              )}
+            <label className="t-cap text-meta-steel">텍스트 (Enter 줄바꿈)</label>
+            {/* controlled — onChange로 store 즉시 동기(히스토리 X), onBlur에서만 history commit.
+                race-condition 방지: 사이드바 타이핑 중 캔버스 클릭해도 최신값이 항상 store에 있음. */}
             <textarea
               className="field mt-1.5 min-h-[120px]"
               rows={5}
-              defaultValue={block.props.children ?? ''}
+              placeholder={STICKER_PLACEHOLDERS[block.props.kind] || ''}
+              value={block.props.children ?? ''}
+              onChange={(e) => setProp('children', e.target.value)}
               onBlur={(e) => setProp('children', e.target.value, { commit: true })}
               onKeyDown={(e) => e.stopPropagation()}
             />
+            {/* Sub Sticker — variant 기반 팔레트 (검정/레몬/네온/화이트(outline)) */}
+            {block.props.kind === 'subSticker' && (
+              <div className="mt-4 pt-4 border-t border-meta-hairline-soft">
+                <SubStickerColorPalette block={block} setProp={setProp} />
+              </div>
+            )}
+            {/* Sub Frame / Sub Info — 도형 기능(채움색·팔레트·모서리 둥글기·보더 두께) */}
+            {(block.props.kind === 'subFrame' || block.props.kind === 'subInfo') && (
+              <div className="mt-4 pt-4 border-t border-meta-hairline-soft space-y-3">
+                <div className="t-cap-b text-meta-steel">도형</div>
+                <ColorInput
+                  label="채움"
+                  value={block.props.fill ?? ''}
+                  onCommit={(v) => setProp('fill', v, { commit: true })}
+                />
+                <StickerColorPalette block={block} setProp={setProp} />
+                <NumberInput
+                  label="모서리 둥글기"
+                  value={block.props.borderRadius ?? 0}
+                  onCommit={(v) => setProp('borderRadius', v, { commit: true })}
+                />
+                <div>
+                  <div className="t-cap text-meta-steel mb-1">보더 두께</div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setProp('border', 3, { commit: true })}
+                      className={'pill-tab ' + ((block.props.border ?? 3) === 3 ? 'is-active' : '')}
+                    >
+                      두껍게
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProp('border', 1, { commit: true })}
+                      className={'pill-tab ' + ((block.props.border ?? 3) === 1 ? 'is-active' : '')}
+                    >
+                      얇게
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProp('border', 0, { commit: true })}
+                      className={'pill-tab ' + ((block.props.border ?? 3) === 0 ? 'is-active' : '')}
+                    >
+                      없음
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -561,6 +669,31 @@ function FieldEditor({ field, value, onChange, onCommit, onApplyAll, positionVal
   // summary-rows — bi-body-summary용 행 단위 표 (2~5행)
   if (field.type === 'summary-rows') {
     return <SummaryRowsField field={field} value={value} onCommit={onCommit} />;
+  }
+  // toggle — boolean 켜짐/꺼짐. 구 페이지에서 value가 ''로 들어오면 field.default 사용.
+  if (field.type === 'toggle') {
+    const current = typeof value === 'boolean' ? value : (field.default ?? false);
+    return (
+      <div>
+        <Label field={field} onApplyAll={onApplyAll} />
+        <div className="grid grid-cols-2 gap-1">
+          <button
+            type="button"
+            onClick={() => onCommit(true)}
+            className={'pill-tab ' + (current ? 'is-active' : '')}
+          >
+            켜짐
+          </button>
+          <button
+            type="button"
+            onClick={() => onCommit(false)}
+            className={'pill-tab ' + (!current ? 'is-active' : '')}
+          >
+            꺼짐
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // 텍스트 필드는 plain text로 보여주되, 미변경 시 원본 HTML 보존.
@@ -987,6 +1120,173 @@ function SummaryRowsField({ field, value, onCommit }) {
         <div className="t-cap text-meta-stone">
           💡 라벨·값은 캔버스 미리보기에서 직접 클릭해서 수정하세요.
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 텍스트 블록 글자색 팔레트 — color만 설정. 정사각형 swatch + 추후 확장용 + 버튼.
+function TextColorPalette({ block, setProp }) {
+  const SWATCHES = [
+    { color: '#000000', label: '블랙' },
+    { color: '#FFFFFF', label: '화이트' },
+    { color: '#AAFF00', label: '네온그린' },
+    { color: '#FFFABA', label: '레몬' },
+  ];
+  const cur = (block.props.color || '').toLowerCase();
+  return (
+    <div>
+      <div className="t-cap text-meta-steel mb-1.5">색상 팔레트</div>
+      <div className="flex gap-2">
+        {SWATCHES.map((s) => {
+          const active = cur === s.color.toLowerCase();
+          return (
+            <button
+              key={s.color}
+              type="button"
+              onClick={() => setProp('color', s.color, { commit: true })}
+              title={s.label}
+              className={
+                'h-9 w-9 rounded-md transition-all ' +
+                (active
+                  ? 'ring-2 ring-meta-primary ring-offset-2'
+                  : 'border border-meta-hairline hover:border-meta-stone')
+              }
+              style={{ background: s.color }}
+            />
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => alert('컬러 팔레트 추가 기능은 추후 지원 예정이에요.')}
+          title="팔레트 추가"
+          className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-stone hover:bg-meta-surface text-meta-stone text-base font-bold leading-none"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Sub Sticker 색상 팔레트 — variant prop만 설정. 4종 + 확장용 + 버튼.
+// 화이트 swatch는 outline 스타일(검정 배경 + 흰 보더 + 흰 글씨)이라 swatch도 그 모양으로 표현.
+function SubStickerColorPalette({ block, setProp }) {
+  const SWATCHES = [
+    { variant: 'black', bg: '#000000', label: '블랙 (네온 글씨)' },
+    { variant: 'lemon', bg: '#FFFABA', label: '레몬 (검정 글씨)' },
+    { variant: 'neon', bg: '#AAFF00', label: '네온 (검정 글씨)' },
+    { variant: 'white', bg: '#000000', outline: true, label: '화이트 (검정 배경 · 흰 테두리/글씨)' },
+  ];
+  const cur = block.props.variant || 'black';
+  return (
+    <div>
+      <div className="t-cap text-meta-steel mb-1.5">색상 팔레트</div>
+      <div className="flex gap-2">
+        {SWATCHES.map((s) => {
+          const active = cur === s.variant;
+          return (
+            <button
+              key={s.variant}
+              type="button"
+              onClick={() => setProp('variant', s.variant, { commit: true })}
+              title={s.label}
+              className={
+                'h-9 w-9 rounded-md transition-all ' +
+                (active
+                  ? 'ring-2 ring-meta-primary ring-offset-2'
+                  : 'border border-meta-hairline hover:border-meta-stone')
+              }
+              style={{
+                background: s.bg,
+                ...(s.outline ? { boxShadow: 'inset 0 0 0 2px #fff' } : {}),
+              }}
+            />
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => alert('컬러 팔레트 추가 기능은 추후 지원 예정이에요.')}
+          title="팔레트 추가"
+          className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-stone hover:bg-meta-surface text-meta-stone text-base font-bold leading-none"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 스티커 색상 팔레트 — fill + textColor 동시 설정. 정사각형 swatch + 추후 확장용 + 버튼.
+function StickerColorPalette({ block, setProp }) {
+  const SWATCHES = [
+    { fill: '#000000', textColor: '#FFFFFF', label: '블랙' },
+    { fill: '#FFFABA', textColor: '#000000', label: '레몬' },
+    { fill: '#AAFF00', textColor: '#000000', label: '네온그린' },
+  ];
+  const currentFill = (block.props.fill || '').toLowerCase();
+  return (
+    <div>
+      <div className="t-cap text-meta-steel mb-1.5">색상 팔레트</div>
+      <div className="flex gap-2">
+        {SWATCHES.map((s) => {
+          const active = currentFill === s.fill.toLowerCase();
+          return (
+            <button
+              key={s.fill}
+              type="button"
+              onClick={() => {
+                // fill 즉시 동기 + textColor commit 1회로 history 묶음
+                setProp('fill', s.fill);
+                setProp('textColor', s.textColor, { commit: true });
+              }}
+              title={s.label}
+              className={
+                'h-9 w-9 rounded-md transition-all ' +
+                (active
+                  ? 'ring-2 ring-meta-primary ring-offset-2'
+                  : 'border border-meta-hairline hover:border-meta-stone')
+              }
+              style={{ background: s.fill }}
+            />
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => alert('컬러 팔레트 추가 기능은 추후 지원 예정이에요.')}
+          title="팔레트 추가"
+          className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-stone hover:bg-meta-surface text-meta-stone text-base font-bold leading-none"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 페이지 표시 (우하단 페이지 번호) 전역 토글 — 라벨은 다른 필드와 동일 t-cap-b
+function PageNumberToggle({ project, setHide }) {
+  const hide = !!project.hidePageNumber;
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <label className="t-cap-b text-meta-ink-deep">페이지 표시</label>
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        <button
+          type="button"
+          onClick={() => setHide(false)}
+          className={'pill-tab ' + (!hide ? 'is-active' : '')}
+        >
+          표시
+        </button>
+        <button
+          type="button"
+          onClick={() => setHide(true)}
+          className={'pill-tab ' + (hide ? 'is-active' : '')}
+        >
+          숨김
+        </button>
       </div>
     </div>
   );

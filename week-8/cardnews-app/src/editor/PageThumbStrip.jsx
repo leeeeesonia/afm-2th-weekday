@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { CARD_W, CARD_H } from '../design/tokens.js';
 import { getVariant, getTemplate } from '../templates/registry.js';
-import { BgPhotoContext } from '../design/primitives.jsx';
+import { BgPhotoContext, ThemeContext } from '../design/primitives.jsx';
+import { CN_THEMES } from '../design/tokens.js';
 import { BlockRenderer } from './BlockRenderer.jsx';
 
 function OverlayPreview({ overlays }) {
@@ -41,9 +42,11 @@ export function PageThumbStrip({ project }) {
             if (!variant) return null;
             const Comp = variant.Component;
             const themeMode = page.themeMode || 'light';
-            const props = { ...page.props, page: page.props.hidePageNumber ? '' : `${i + 1} / ${total}`, themeMode };
+            const props = { ...page.props, page: project.hidePageNumber ? '' : `${i + 1} / ${total}`, themeMode };
             const active = i === activePageIndex;
-            const thumbBg = themeMode === 'dark' ? '#0A0A0A' : '#fff';
+            const thumbBg = themeMode === 'dark' ? CN_THEMES.dark.bg
+              : themeMode === 'pastel' ? CN_THEMES.pastel.bg
+              : '#fff';
             return (
               <li key={page.id}>
                 <button
@@ -59,9 +62,11 @@ export function PageThumbStrip({ project }) {
                   <div className="relative overflow-hidden" style={{ paddingBottom: `${(CARD_H / CARD_W) * 100}%` }}>
                     <div style={{ position: 'absolute', inset: 0 }}>
                       <div style={{ width: CARD_W, height: CARD_H, transform: 'scale(0.18)', transformOrigin: 'top left', position: 'relative' }}>
-                        <BgPhotoContext.Provider value={page.props.bgPhoto ? { src: page.props.bgPhoto, scale: page.props.bgPhotoScale || 1, position: page.props.bgPhotoPosition || 'center' } : null}>
-                          <Comp {...props} />
-                        </BgPhotoContext.Provider>
+                        <ThemeContext.Provider value={themeMode}>
+                          <BgPhotoContext.Provider value={page.props.bgPhoto ? { src: page.props.bgPhoto, scale: page.props.bgPhotoScale || 1, position: page.props.bgPhotoPosition || 'center' } : null}>
+                            <Comp {...props} />
+                          </BgPhotoContext.Provider>
+                        </ThemeContext.Provider>
                         <OverlayPreview overlays={page.overlays} />
                       </div>
                     </div>

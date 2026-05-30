@@ -14,10 +14,17 @@ export const CN_COLORS = {
   lemon: '#FFFABA',
 };
 
-// 다크/라이트 테마 — 사용자가 에디터에서 토글
+// 다크/라이트/파스텔 테마 — 사용자가 에디터에서 토글
+// 파스텔: 그레이시 소라색 배경 + 라이트와 동일한 텍스트 컬러 + 크라프트지 텍스처(Card에서 오버레이)
 export const CN_THEMES = {
   light: {
     bg: '#FFFFFF',
+    text: '#000000',
+    textSub: 'rgba(0,0,0,0.5)',
+    scrim: 'rgba(0,0,0,0.35)',
+  },
+  pastel: {
+    bg: '#CFD9E1',
     text: '#000000',
     textSub: 'rgba(0,0,0,0.5)',
     scrim: 'rgba(0,0,0,0.35)',

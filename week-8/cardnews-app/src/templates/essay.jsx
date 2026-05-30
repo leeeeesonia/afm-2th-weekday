@@ -60,7 +60,7 @@ function EssayHeader({ eyebrow = 'Essay', color = '#000', wordmark = '@oyatlog',
 }
 
 /* ─────────── 표지 (4 variants) ─────────── */
-function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#fff', wordmark, wordmarkLogo, eyebrow }) {
+function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#fff', wordmark, wordmarkLogo, eyebrow, gradient = true, textShadow = false }) {
   const padX = 84;
   const blockW = 912;
   const horizontal = {
@@ -82,7 +82,7 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
   return (
     <Card>
       <FullBleedPhoto src={photo} />
-      <Scrim gradient={scrim} />
+      {gradient && <Scrim gradient={scrim} />}
       <EssayHeader color={textColor} wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
       <div
         style={{
@@ -103,7 +103,7 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
             fontSize: 84,
             lineHeight: 1.15,
             letterSpacing: '-0.045em',
-            textShadow: '0 2px 18px rgba(0,0,0,0.35)',
+            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 18px rgba(0,0,0,0.35)' : 'none',
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
           }}
@@ -120,7 +120,7 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
               fontSize: 32,
               lineHeight: 1.5,
               letterSpacing: '-0.04em',
-              textShadow: '0 1px 12px rgba(0,0,0,0.3)',
+              textShadow: textShadow ? '0 1px 2px rgba(0,0,0,0.6), 0 1px 12px rgba(0,0,0,0.3)' : 'none',
               whiteSpace: 'pre-line',
               wordBreak: 'keep-all',
             }}
@@ -139,6 +139,8 @@ const COVER_FIELDS = [
   { key: 'subtitle', label: '서브 타이틀 (줄바꿈 가능)', type: 'textarea', default: '이건 그냥 대충 이 정도 느낌' },
   { key: 'photo', label: '배경 사진', type: 'image', default: '' },
   { key: 'wordmark', label: '워드마크', type: 'text', default: '@oyatlog' },
+  { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+  { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
 ];
 
 const BODY_FIELDS_TEXTONLY = [
@@ -175,6 +177,8 @@ const BODY3_FIELDS = [
 이렇게 저렇게 고칠 수 있습니다.` },
   { key: 'caption', label: '하단 캡션', type: 'text', default: '피그마 AI 정복기 가능?' },
   { key: 'wordmark', label: '워드마크', type: 'text', default: '@oyatlog' },
+  { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+  { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
 ];
 
 export const ESSAY_VARIANTS = [
@@ -268,10 +272,10 @@ export const ESSAY_VARIANTS = [
     label: '본문 3 · 풀이미지 + 글 위',
     category: 'body',
     fields: BODY3_FIELDS,
-    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo }) => (
+    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, gradient = true, textShadow = false }) => (
       <Card>
         <FullBleedPhoto src={photo} />
-        <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />
+        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <EssayHeader color="#fff" wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
         <div
           data-cn-field="body"
@@ -289,7 +293,7 @@ export const ESSAY_VARIANTS = [
             color: '#fff',
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            textShadow: '0 1px 12px rgba(0,0,0,0.35)',
+            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
           }}
         >
           {body}
@@ -303,10 +307,10 @@ export const ESSAY_VARIANTS = [
     label: '본문 3 · 풀이미지 + 글 아래',
     category: 'body',
     fields: BODY3_FIELDS,
-    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo }) => (
+    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, gradient = true, textShadow = false }) => (
       <Card>
         <FullBleedPhoto src={photo} />
-        <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <EssayHeader color="#fff" wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
         <div
           data-cn-field="body"
@@ -324,7 +328,7 @@ export const ESSAY_VARIANTS = [
             color: '#fff',
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            textShadow: '0 1px 12px rgba(0,0,0,0.35)',
+            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
           }}
         >
           {body}

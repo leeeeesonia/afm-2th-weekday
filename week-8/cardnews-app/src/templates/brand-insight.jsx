@@ -12,6 +12,7 @@ import {
   FullBleedPhoto,
   Scrim,
   BackgroundFill,
+  useCnTheme,
 } from '../design/primitives.jsx';
 import { BG_FIELDS, bgItems } from './blankFields.js';
 import { StandardMiddle } from '../design/stickers.jsx';
@@ -26,8 +27,12 @@ function BIEyebrow({ eyebrow = 'Insight Note', color = '#000' }) {
 }
 
 function BIWordmark({ children = 'PORTER CLASSIC', color, wordmarkLogo }) {
+  const mode = useCnTheme();
+  // color가 명시되면 그대로 (사진 위 흰글씨 케이스 등). 미지정이면 테마 따라 자동.
+  const resolved =
+    color ?? (mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)');
   if (wordmarkLogo) {
-    const onDark = color && color.includes('255');
+    const onDark = resolved.includes('255'); // 흰계열이면 로고 반전
     return (
       <img
         src={wordmarkLogo}
@@ -57,7 +62,30 @@ function BIWordmark({ children = 'PORTER CLASSIC', color, wordmarkLogo }) {
         fontWeight: 500,
         letterSpacing: '0.02em',
         lineHeight: 1,
-        color: color ?? 'rgba(0,0,0,0.5)',
+        color: resolved,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function BIEyebrowSub({ children }) {
+  const mode = useCnTheme();
+  const c = mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
+  return (
+    <span
+      data-cn-field="eyebrowSub"
+      style={{
+        position: 'absolute',
+        right: 84,
+        top: 106,
+        fontFamily: CN_FONT,
+        fontSize: 26,
+        fontWeight: 500,
+        letterSpacing: '-0.04em',
+        lineHeight: 1,
+        color: c,
       }}
     >
       {children}
@@ -83,58 +111,45 @@ export const BI_VARIANTS = [
       { key: 'title', label: '메인 타이틀', type: 'text', default: '포터 클래식의 미학' },
       { key: 'wordEng', label: '하단 영문', type: 'text', default: 'PORTER CLASSIC STORY' },
     ],
-    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng }) => (
-      <Card>
-        <BIEyebrow eyebrow={eyebrow} />
-        <span
-          data-cn-field="eyebrowSub"
-          style={{
-            position: 'absolute',
-            right: 84,
-            top: 106,
-            fontFamily: CN_FONT,
-            fontSize: 26,
-            fontWeight: 500,
-            letterSpacing: '-0.04em',
-            lineHeight: 1,
-            color: 'rgba(0,0,0,0.5)',
-          }}
-        >
-          {eyebrowSub}
-        </span>
-        {/* T1 좌하단 패턴 — bottom anchored 블록 안에 title + wordEng (Archivo Narrow).
-            마지막 줄(wordEng)이 y=1150에 고정 → 1줄/2줄 모두 침범 없음. */}
-        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
-          <div
-            data-cn-field="title"
-            data-cn-multiline="1"
-            style={{
-              fontWeight: 800,
-              fontSize: 88,  // 1줄 variant
-              lineHeight: 1.15,
-              letterSpacing: '-0.045em',
-              whiteSpace: 'pre-line',
-              wordBreak: 'keep-all',
-              overflowWrap: 'anywhere',
-            }}
-            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
-          />
-          <div
-            data-cn-field="wordEng"
-            style={{
-              marginTop: 30,
-              fontFamily: CN_FONT_ARCHIVO,
-              fontWeight: 500,
-              fontSize: 32,
-              letterSpacing: '0.18em',
-              lineHeight: 1,
-            }}
-          >
-            {wordEng}
+    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, themeMode }) => {
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
+      return (
+        <Card>
+          <BIEyebrow eyebrow={eyebrow} />
+          <BIEyebrowSub>{eyebrowSub}</BIEyebrowSub>
+          {/* T1 좌하단 패턴 — bottom anchored 블록. color는 wrapper에 한 번만 → 자식 상속. */}
+          <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT, color: fg }}>
+            <div
+              data-cn-field="title"
+              data-cn-multiline="1"
+              style={{
+                fontWeight: 800,
+                fontSize: 88,
+                lineHeight: 1.15,
+                letterSpacing: '-0.045em',
+                whiteSpace: 'pre-line',
+                wordBreak: 'keep-all',
+                overflowWrap: 'anywhere',
+              }}
+              dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+            />
+            <div
+              data-cn-field="wordEng"
+              style={{
+                marginTop: 30,
+                fontFamily: CN_FONT_ARCHIVO,
+                fontWeight: 500,
+                fontSize: 32,
+                letterSpacing: '0.18em',
+                lineHeight: 1,
+              }}
+            >
+              {wordEng}
+            </div>
           </div>
-        </div>
-      </Card>
-    ),
+        </Card>
+      );
+    },
   },
   {
     id: 'bi-cover-2line',
@@ -146,57 +161,44 @@ export const BI_VARIANTS = [
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Insight Note' },
       { key: 'wordEng', label: '하단 영문', type: 'text', default: 'PORTER CLASSIC STORY' },
     ],
-    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng }) => (
-      <Card>
-        <BIEyebrow eyebrow={eyebrow} />
-        <span
-          data-cn-field="eyebrowSub"
-          style={{
-            position: 'absolute',
-            right: 84,
-            top: 106,
-            fontFamily: CN_FONT,
-            fontSize: 26,
-            fontWeight: 500,
-            letterSpacing: '-0.04em',
-            lineHeight: 1,
-            color: 'rgba(0,0,0,0.5)',
-          }}
-        >
-          {eyebrowSub}
-        </span>
-        {/* 2줄 타이틀 — T1 좌하단 패턴, fontSize 84 (1줄 88보다 작음). */}
-        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
-          <div
-            data-cn-field="title"
-            data-cn-multiline="1"
-            style={{
-              fontWeight: 800,
-              fontSize: 84,  // 2줄 variant
-              lineHeight: 1.15,
-              letterSpacing: '-0.045em',
-              whiteSpace: 'pre-line',
-              wordBreak: 'keep-all',
-              overflowWrap: 'anywhere',
-            }}
-            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
-          />
-          <div
-            data-cn-field="wordEng"
-            style={{
-              marginTop: 30,
-              fontFamily: CN_FONT_ARCHIVO,
-              fontWeight: 500,
-              fontSize: 32,
-              letterSpacing: '0.18em',
-              lineHeight: 1,
-            }}
-          >
-            {wordEng}
+    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, themeMode }) => {
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
+      return (
+        <Card>
+          <BIEyebrow eyebrow={eyebrow} />
+          <BIEyebrowSub>{eyebrowSub}</BIEyebrowSub>
+          <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT, color: fg }}>
+            <div
+              data-cn-field="title"
+              data-cn-multiline="1"
+              style={{
+                fontWeight: 800,
+                fontSize: 84,
+                lineHeight: 1.15,
+                letterSpacing: '-0.045em',
+                whiteSpace: 'pre-line',
+                wordBreak: 'keep-all',
+                overflowWrap: 'anywhere',
+              }}
+              dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+            />
+            <div
+              data-cn-field="wordEng"
+              style={{
+                marginTop: 30,
+                fontFamily: CN_FONT_ARCHIVO,
+                fontWeight: 500,
+                fontSize: 32,
+                letterSpacing: '0.18em',
+                lineHeight: 1,
+              }}
+            >
+              {wordEng}
+            </div>
           </div>
-        </div>
-      </Card>
-    ),
+        </Card>
+      );
+    },
   },
 
   /* ── Body · text heavy (큰 제목 / 소제목 / 본문) — 형광·볼드는 본문 드래그 시 floating bar ── */
@@ -271,78 +273,71 @@ export const BI_VARIANTS = [
     fields: [
       ...COMMON,
       { key: 'bg', label: '풀배경 사진', type: 'image', default: '' },
+      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
     ],
     defaultOverlays: () => [
       { type: 'image', x: 180, y: 380, w: 720, h: 720, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, wordmark, caption, page, bg }) => (
+    Component: ({ eyebrow, wordmark, caption, page, bg, gradient = true }) => (
       <Card>
         <FullBleedPhoto src={bg} />
-        <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />
+        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
         <BIEyebrow eyebrow={eyebrow} />
         <BIWordmark>{wordmark}</BIWordmark>
-        <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
         <CardFooter left={caption} right={page} leftField="caption" />
       </Card>
     ),
   },
 
-  /* ── Body · 꺽쇠 connected (사진 자유 드래그, 꺽쇠 라인은 고정) ── */
+  /* ── Body · full image + 글 위 (이전 '꺽쇠 연결' 변형 — 꺽쇠/사진블록 제거, 풀이미지 모드로 전환) ── */
+  // id는 기존 'bi-body-connected' 유지 — 기존 프로젝트 페이지가 깨지지 않도록.
   {
     id: 'bi-body-connected',
-    label: '본문 · 꺽쇠 연결 사진 2장 (자유 드래그)',
+    label: '본문 · 풀이미지 + 글 위',
     category: 'body',
     fields: [
       ...COMMON,
-      { key: 'body', label: '우상단 본문', type: 'textarea', default:
-`대답은 똑같이 이렇게 하면 되지. 팝업 플랜을 세분화하기 위해 사전 질문지를 공유드립니다. 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로 니즈를 편하게 답변해주세요!` },
+      { key: 'photo', label: '배경 사진', type: 'image', default: '' },
+      { key: 'body', label: '본문', type: 'textarea', default:
+`장인의 손맛이 브랜드의 정체성이 될 때,
+오래 입을수록 진가가 드러나는 옷을 만드는 구도에
+포터 클래식의 철학이 담겨 있습니다.` },
+      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    defaultOverlays: () => [
-      { type: 'image', x: 84, y: 420, w: 280, h: 265, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
-      { type: 'image', x: 716, y: 880, w: 320, h: 305, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
-    ],
-    Component: ({ eyebrow, wordmark, caption, page, body }) => {
-      const a = { x: 84, y: 420, w: 280, h: 265 };
-      const b = { x: 716, y: 880, w: 320, h: 305 };
-      const a1 = { x: a.x + a.w, y: a.y + a.h };
-      const elbow1 = { x: a1.x + 70, y: a1.y + 150 };
-      const end1 = { x: elbow1.x + 200, y: elbow1.y };
-      const b1 = { x: b.x, y: b.y };
-      const elbow2 = { x: b1.x - 70, y: b1.y - 100 };
-      const end2 = { x: elbow2.x - 200, y: elbow2.y };
-      return (
-        <Card>
-          <BIEyebrow />
-          <BIWordmark>{wordmark}</BIWordmark>
-          <BodyText x={84} y={220} w={912} size={32} weight={500} lineHeight={1.6} align="right" field="body">
-            {body}
-          </BodyText>
-          <svg
-            width={CARD_W}
-            height={CARD_H}
-            style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
-          >
-            <polyline
-              points={`${a1.x},${a1.y} ${elbow1.x},${elbow1.y} ${end1.x},${end1.y}`}
-              fill="none"
-              stroke={CN_COLORS.black}
-              strokeWidth="3"
-              strokeLinecap="square"
-              strokeLinejoin="miter"
-            />
-            <polyline
-              points={`${b1.x},${b1.y} ${elbow2.x},${elbow2.y} ${end2.x},${end2.y}`}
-              fill="none"
-              stroke={CN_COLORS.black}
-              strokeWidth="3"
-              strokeLinecap="square"
-              strokeLinejoin="miter"
-            />
-          </svg>
-          <CardFooter left={caption} right={page} leftField="caption" />
-        </Card>
-      );
-    },
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, gradient = true, textShadow = false }) => (
+      <Card>
+        <FullBleedPhoto src={photo} />
+        {/* 위쪽이 어둡고 아래로 페이드 — '글 위' 카피 가독성 확보 (글 아래 변형의 거울상) */}
+        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
+        <BIEyebrow color="#fff" />
+        <BIWordmark color="rgba(255,255,255,0.65)" wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
+        <div
+          data-cn-field="body"
+          data-cn-multiline="1"
+          style={{
+            position: 'absolute',
+            left: 84,
+            right: 84,
+            top: 200,
+            fontFamily: CN_FONT,
+            fontWeight: 500,
+            fontSize: 32,
+            lineHeight: 1.65,
+            letterSpacing: '-0.04em',
+            color: '#fff',
+            whiteSpace: 'pre-line',
+            wordBreak: 'keep-all',
+            // 미세 드랍섀도우 — 밝은 사진 위에서도 텍스트 가독성 확보. 그라디언트 OFF일 때 가장 유용.
+            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
+          }}
+        >
+          {body}
+        </div>
+        <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
+      </Card>
+    ),
   },
 
   /* ── Body · CTA quote ── */
@@ -360,7 +355,8 @@ export const BI_VARIANTS = [
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로
 니즈를 편하게 답변해주세요!` },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, title, highlight, rest, body }) => {
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, title, highlight, rest, body, themeMode }) => {
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
       // 기존 highlight/rest 두 필드 데이터 → 단일 title로 합치기 (호환성)
       const titleHtml = title || (
         highlight || rest
@@ -389,6 +385,7 @@ export const BI_VARIANTS = [
               whiteSpace: 'pre-line',
               wordBreak: 'keep-all',
               overflowWrap: 'anywhere',
+              color: fg,
             }}
             dangerouslySetInnerHTML={{ __html: titleHtml }}
           />
@@ -419,11 +416,13 @@ export const BI_VARIANTS = [
 `장인의 손맛이 브랜드의 정체성이 될 때,
 오래 입을수록 진가가 드러나는 옷을 만드는 구도에
 포터 클래식의 철학이 담겨 있습니다.` },
+      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body }) => (
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, gradient = true, textShadow = false }) => (
       <Card>
         <FullBleedPhoto src={photo} />
-        <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <BIEyebrow color="#fff" />
         <BIWordmark color="rgba(255,255,255,0.65)" wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
         <div
@@ -442,7 +441,8 @@ export const BI_VARIANTS = [
             color: '#fff',
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            textShadow: '0 1px 12px rgba(0,0,0,0.35)',
+            // 미세 드랍섀도우 — 그라디언트 OFF + 밝은 사진에서도 텍스트 가독성 확보
+            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
           }}
         >
           {body}
@@ -467,7 +467,8 @@ export const BI_VARIANTS = [
         { label: 'Insight', value: '100년의 지혜를 담은 일본 교토의\n대표적 클래식 워크웨어 브랜드.' },
       ] },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, brand, subtitle, rows, where, price, summary }) => {
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, brand, subtitle, rows, where, price, summary, themeMode }) => {
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
       // 기존 where/price/summary 분리 필드 데이터 → rows 배열로 자동 마이그레이션 (호환성)
       const resolvedRows = Array.isArray(rows) && rows.length > 0
         ? rows
@@ -492,6 +493,7 @@ export const BI_VARIANTS = [
               fontSize: 64,
               lineHeight: 1.15,
               letterSpacing: '-0.045em',
+              color: fg,
             }}
           >
             {/* 브랜드 — 형광 강제 제거. 필요하면 사용자가 드래그 → floating bar로 직접 적용. */}
@@ -503,14 +505,18 @@ export const BI_VARIANTS = [
               {subtitle}
             </div>
           </div>
+          {/* 표 영역 — 서브카피 아래(top 440)와 하단 캡션/페이지 표기 위(bottom 180) 사이에서 행 수에 따라 자동 가운데 정렬.
+              2/3/4/5행 모두 빈 공간을 균등하게 차지 (justify-content: center). */}
           <div
             style={{
               position: 'absolute',
               left: 84,
               right: 84,
-              top: 540,
+              top: 440,
+              bottom: 180,
               display: 'flex',
               flexDirection: 'column',
+              justifyContent: 'center',
               gap: 24,
             }}
           >

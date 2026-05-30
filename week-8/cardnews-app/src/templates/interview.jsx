@@ -8,6 +8,7 @@ import {
   FullBleedPhoto,
   Scrim,
   BackgroundFill,
+  useCnTheme,
 } from '../design/primitives.jsx';
 import { BG_FIELDS, bgItems } from './blankFields.js';
 import { QuestionBox, QuestionMiddle, StandardMiddle } from '../design/stickers.jsx';
@@ -19,6 +20,8 @@ const COVER_FIELDS = [
   { key: 'title', label: '메인 타이틀', type: 'textarea', default: '브랜드기획자 이수지를\n소개합니다.' },
   { key: 'wordmark', label: '워드마크', type: 'text', default: '@oyatlog' },
   { key: 'photo', label: '배경 사진', type: 'image', default: '' },
+  { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+  { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
 ];
 
 const BODY_COMMON = [
@@ -26,8 +29,12 @@ const BODY_COMMON = [
   { key: 'wordmark', label: '워드마크', type: 'text', default: '@oyatlog' },
 ];
 
-function IVTopRight({ wordmark, color = '#000', wordmarkLogo }) {
-  const subColor = color === '#fff' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.5)';
+function IVTopRight({ wordmark, color, wordmarkLogo }) {
+  const mode = useCnTheme();
+  // color 미지정이면 테마 따라 자동. 명시(#fff 등)되면 그대로.
+  const fg = color ?? (mode === 'dark' ? '#fff' : '#000');
+  const isWhite = fg === '#fff' || fg === '#FFFFFF';
+  const subColor = isWhite ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.5)';
   if (wordmarkLogo) {
     return (
       <img
@@ -41,7 +48,7 @@ function IVTopRight({ wordmark, color = '#000', wordmarkLogo }) {
           width: 'auto',
           display: 'block',
           opacity: 0.85,
-          filter: color === '#fff' ? 'brightness(0) invert(1)' : 'none',
+          filter: isWhite ? 'brightness(0) invert(1)' : 'none',
         }}
       />
     );
@@ -66,7 +73,9 @@ function IVTopRight({ wordmark, color = '#000', wordmarkLogo }) {
   );
 }
 
-function IVPageOnly({ page, color = '#000' }) {
+function IVPageOnly({ page, color }) {
+  const mode = useCnTheme();
+  const c = color ?? (mode === 'dark' ? '#fff' : '#000');
   return (
     <div
       style={{
@@ -78,7 +87,7 @@ function IVPageOnly({ page, color = '#000' }) {
         fontWeight: 500,
         letterSpacing: '0.04em',
         fontVariantNumeric: 'tabular-nums',
-        color,
+        color: c,
       }}
     >
       {page}
@@ -148,6 +157,8 @@ export const IV_VARIANTS = [
           }}
         >
           <div
+            data-cn-field="title"
+            data-cn-multiline="1"
             style={{
               fontFamily: CN_FONT,
               fontWeight: 800,
@@ -183,10 +194,10 @@ export const IV_VARIANTS = [
     label: '표지 2 · 사진 위 오버레이',
     category: 'cover',
     fields: COVER_FIELDS,
-    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo }) => (
+    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo, gradient = true, textShadow = false }) => (
       <Card>
         <FullBleedPhoto src={photo} />
-        <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 70%)" />
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 70%)" />}
         <Eyebrow x={84} y={99} color="#fff" font={CN_FONT_ARCHIVO} size={32} weight={700} tracking="0.04em">
           {eyebrow}
         </Eyebrow>
@@ -219,6 +230,8 @@ export const IV_VARIANTS = [
             {sub.toUpperCase()}
           </div>
           <div
+            data-cn-field="title"
+            data-cn-multiline="1"
             style={{
               fontFamily: CN_FONT,
               fontWeight: 800,
@@ -227,7 +240,7 @@ export const IV_VARIANTS = [
               letterSpacing: '-0.045em',
               whiteSpace: 'pre-line',
               wordBreak: 'keep-all',
-              textShadow: '0 2px 18px rgba(0,0,0,0.35)',
+              textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 18px rgba(0,0,0,0.35)' : 'none',
             }}
           >
             {title}
@@ -243,8 +256,10 @@ export const IV_VARIANTS = [
     label: '표지 3 · 가로 split',
     category: 'cover',
     fields: COVER_FIELDS,
-    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo }) => {
+    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo, themeMode }) => {
       const photoH = 820;
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
+      const fgSub = themeMode === 'dark' ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)';
       return (
         <Card>
           <div
@@ -260,7 +275,7 @@ export const IV_VARIANTS = [
               backgroundPosition: 'center',
             }}
           />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: photoH, height: 3, background: CN_COLORS.black }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: photoH, height: 3, background: fg }} />
           <Eyebrow x={84} y={99} color="#fff" font={CN_FONT_ARCHIVO} size={32} weight={700} tracking="0.04em">
             {eyebrow}
           </Eyebrow>
@@ -292,6 +307,8 @@ export const IV_VARIANTS = [
             }}
           >
             <div
+              data-cn-field="title"
+              data-cn-multiline="1"
               style={{
                 fontFamily: CN_FONT,
                 fontWeight: 800,
@@ -300,6 +317,7 @@ export const IV_VARIANTS = [
                 letterSpacing: '-0.045em',
                 whiteSpace: 'pre-line',
                 wordBreak: 'keep-all',
+                color: fg,
               }}
             >
               {title}
@@ -310,7 +328,7 @@ export const IV_VARIANTS = [
                 fontSize: 26,
                 fontWeight: 500,
                 letterSpacing: '0.08em',
-                color: 'rgba(0,0,0,0.55)',
+                color: fgSub,
               }}
             >
               {sub.toUpperCase()}
@@ -327,11 +345,11 @@ export const IV_VARIANTS = [
     label: '표지 4 · 네온 박스 (MAIN)',
     category: 'cover',
     fields: COVER_FIELDS,
-    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo }) => (
+    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo, gradient = true }) => (
       <Card>
         <FullBleedPhoto src={photo} />
-        <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)" />
-        <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 100%)" />
+        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)" />}
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 100%)" />}
         <Eyebrow x={84} y={99} color="#fff" font={CN_FONT_ARCHIVO} size={32} weight={700} tracking="0.04em">
           {eyebrow}
         </Eyebrow>
@@ -361,6 +379,8 @@ export const IV_VARIANTS = [
             }}
           >
             <div
+              data-cn-field="title"
+              data-cn-multiline="1"
               style={{
                 fontFamily: CN_FONT,
                 fontWeight: 800,
@@ -416,7 +436,14 @@ export const IV_VARIANTS = [
         </Eyebrow>
         <IVTopRight wordmark={wordmark} wordmarkLogo={wordmarkLogo} />
         <div style={{ position: 'absolute', left: 84, top: 220 }}>
-          <QuestionBox size={qSize}>{q}</QuestionBox>
+          <QuestionBox size={qSize}>
+            <span
+              data-cn-field="q"
+              style={{ display: 'inline-block', whiteSpace: 'nowrap' }}
+            >
+              {q}
+            </span>
+          </QuestionBox>
         </div>
         <BodyText x={84} y={420} w={912} size={32} weight={500} lineHeight={1.7} field="a">
           {a}
@@ -446,7 +473,14 @@ export const IV_VARIANTS = [
         </Eyebrow>
         <IVTopRight wordmark={wordmark} wordmarkLogo={wordmarkLogo} />
         <div style={{ position: 'absolute', left: 84, top: 720 }}>
-          <QuestionBox size={qSize}>{q}</QuestionBox>
+          <QuestionBox size={qSize}>
+            <span
+              data-cn-field="q"
+              style={{ display: 'inline-block', whiteSpace: 'nowrap' }}
+            >
+              {q}
+            </span>
+          </QuestionBox>
         </div>
         <BodyText x={84} y={920} w={912} size={32} weight={500} lineHeight={1.7} field="a">
           {a}
@@ -478,12 +512,24 @@ export const IV_VARIANTS = [
         <IVTopRight wordmark={wordmark} wordmarkLogo={wordmarkLogo} />
         <div style={{ position: 'absolute', left: 0, right: 0, top: 220, display: 'flex', justifyContent: 'center' }}>
           <QuestionMiddle w={780} size={42}>
-            {q}
+            <span
+              data-cn-field="q"
+              data-cn-multiline="1"
+              style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
+            >
+              {q}
+            </span>
           </QuestionMiddle>
         </div>
         <BottomCenter bottomY={1156}>
           <StandardMiddle w={830} size={30}>
-            {a}
+            <span
+              data-cn-field="a"
+              data-cn-multiline="1"
+              style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
+            >
+              {a}
+            </span>
           </StandardMiddle>
         </BottomCenter>
         <IVPageOnly page={page} />
@@ -511,12 +557,24 @@ export const IV_VARIANTS = [
         <IVTopRight wordmark={wordmark} wordmarkLogo={wordmarkLogo} />
         <div style={{ position: 'absolute', left: 0, right: 0, top: 220, display: 'flex', justifyContent: 'center' }}>
           <QuestionMiddle w={780} size={42}>
-            {q}
+            <span
+              data-cn-field="q"
+              data-cn-multiline="1"
+              style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
+            >
+              {q}
+            </span>
           </QuestionMiddle>
         </div>
         <BottomCenter bottomY={1156}>
           <StandardMiddle w={830} size={32}>
-            {a}
+            <span
+              data-cn-field="a"
+              data-cn-multiline="1"
+              style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
+            >
+              {a}
+            </span>
           </StandardMiddle>
         </BottomCenter>
         <IVPageOnly page={page} />

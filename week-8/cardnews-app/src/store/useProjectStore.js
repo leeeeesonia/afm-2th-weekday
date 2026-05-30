@@ -100,6 +100,7 @@ export const useProjectStore = create(
       historyPast: [],         // [{snapshot, label}]
       historyFuture: [],
       previewMode: false,      // export 가이드선 숨김
+      guideMode: false,        // 안전 영역(84px bleed) 네온 가이드 on/off
       selectedBlockIds: [],    // 캔버스 위 선택된 블록 IDs
       layoutPickerOpen: false, // 사이드바를 레이아웃 picker로 전환
 
@@ -137,6 +138,42 @@ export const useProjectStore = create(
       createProject: ({ templateId, name } = {}) => {
         get()._pushHistory('새 프로젝트');
         const proj = newProject({ templateId, name });
+        set(produce((s) => {
+          s.projects.unshift(proj);
+          s.activeProjectId = proj.id;
+          s.activePageIndex = 0;
+          s.lastSavedAt = Date.now();
+        }));
+        return proj.id;
+      },
+
+      // 프리셋(샘플)으로 프로젝트 생성 — pages 배열을 직접 받아 id 부여 후 추가.
+      // 빈 props 키는 variant 기본값으로 보강해 렌더 누락 방지.
+      createProjectFromPreset: ({ templateId, name, buildPages, status = 'draft' } = {}) => {
+        const tpl = getTemplate(templateId);
+        if (!tpl || typeof buildPages !== 'function') return null;
+        get()._pushHistory('샘플 불러오기');
+        const rawPages = buildPages();
+        const pages = rawPages.map((pg, i) => {
+          const variant = getVariant(templateId, pg.variantId);
+          const base = variant ? defaultPropsForVariant(variant) : {};
+          return {
+            id: newId(`page-${i}`),
+            variantId: pg.variantId,
+            props: { ...base, ...(pg.props || {}) },
+            overlays: pg.overlays || [],
+            ...(pg.themeMode ? { themeMode: pg.themeMode } : {}),
+          };
+        });
+        const proj = {
+          id: newId('proj'),
+          name: name || `${tpl.name} 샘플`,
+          templateId,
+          status,
+          pages,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
         set(produce((s) => {
           s.projects.unshift(proj);
           s.activeProjectId = proj.id;
@@ -209,6 +246,7 @@ export const useProjectStore = create(
       setActivePage: (index) => set({ activePageIndex: index, selectedBlockIds: [] }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setPreviewMode: (on) => set({ previewMode: !!on }),
+      setGuideMode: (on) => set({ guideMode: !!on }),
 
       // ─── Page CRUD ───
       addPage: (variantId, atIndex, templateId) => {
@@ -300,6 +338,18 @@ export const useProjectStore = create(
           const p = s.projects.find((x) => x.id === s.activeProjectId);
           if (!p || !p.pages[pageIndex]) return;
           p.pages[pageIndex].themeMode = mode;
+          p.updatedAt = Date.now();
+          s.lastSavedAt = Date.now();
+        }));
+      },
+
+      // 프로젝트 전역 — 우하단 페이지 번호 표시 on/off
+      setProjectHidePageNumber: (hide) => {
+        get()._pushHistory('페이지 표시 토글');
+        set(produce((s) => {
+          const p = s.projects.find((x) => x.id === s.activeProjectId);
+          if (!p) return;
+          p.hidePageNumber = !!hide;
           p.updatedAt = Date.now();
           s.lastSavedAt = Date.now();
         }));

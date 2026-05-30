@@ -11,6 +11,7 @@ import {
   FullBleedPhoto,
   Scrim,
   BackgroundFill,
+  useCnTheme,
 } from '../design/primitives.jsx';
 import { BG_FIELDS, bgItems } from './blankFields.js';
 import { SubFrame } from '../design/stickers.jsx';
@@ -26,6 +27,8 @@ function BSEyebrow({ eyebrow = 'Project Review' }) {
 
 // brandLogo가 있으면 PNG, 없으면 텍스트. 로고 크기는 텍스트 높이(26px)와 동일.
 function BSBrandTopRight({ children, brandLogo }) {
+  const mode = useCnTheme();
+  const c = mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
   if (brandLogo) {
     return (
       <img
@@ -39,6 +42,7 @@ function BSBrandTopRight({ children, brandLogo }) {
           width: 'auto',
           display: 'block',
           opacity: 0.85,
+          filter: mode === 'dark' ? 'brightness(0) invert(1)' : 'none',
         }}
       />
     );
@@ -54,7 +58,7 @@ function BSBrandTopRight({ children, brandLogo }) {
         fontSize: 26,
         fontWeight: 500,
         letterSpacing: '0.02em',
-        color: 'rgba(0,0,0,0.5)',
+        color: c,
         lineHeight: 1,
       }}
     >
@@ -132,7 +136,9 @@ function NovoundMark({ width = 130, tone = 'dark' }) {
   );
 }
 
-function NovoundCenterBottom({ tone = 'dark' }) {
+function NovoundCenterBottom({ tone }) {
+  const mode = useCnTheme();
+  const finalTone = tone ?? (mode === 'dark' ? 'light' : 'dark');
   return (
     <div
       style={{
@@ -144,20 +150,24 @@ function NovoundCenterBottom({ tone = 'dark' }) {
         justifyContent: 'center',
       }}
     >
-      <NovoundMark width={170} tone={tone} />
+      <NovoundMark width={170} tone={finalTone} />
     </div>
   );
 }
 
-function NovoundBottomLeft({ tone = 'dark' }) {
+function NovoundBottomLeft({ tone }) {
+  const mode = useCnTheme();
+  const finalTone = tone ?? (mode === 'dark' ? 'light' : 'dark');
   return (
     <div style={{ position: 'absolute', left: 84, bottom: 86 }}>
-      <NovoundMark width={130} tone={tone} />
+      <NovoundMark width={130} tone={finalTone} />
     </div>
   );
 }
 
 function PageRight({ page }) {
+  const mode = useCnTheme();
+  const c = mode === 'dark' ? '#fff' : '#000';
   return (
     <div
       style={{
@@ -169,6 +179,7 @@ function PageRight({ page }) {
         fontWeight: 500,
         letterSpacing: '0.04em',
         fontVariantNumeric: 'tabular-nums',
+        color: c,
       }}
     >
       {page}
@@ -230,7 +241,7 @@ export const BS_VARIANTS = [
     defaultOverlays: () => [
       { type: 'image', x: 560, y: 720, w: 436, h: 436, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, brand, brandLogo, page, body, overviewLabel = '[OVERVIEW]' }) => (
+    Component: ({ eyebrow, brand, brandLogo, page, body, overviewLabel = '[OVERVIEW]', themeMode }) => (
       <Card>
         <BSEyebrow eyebrow={eyebrow} />
         <BSBrandTopRight brandLogo={brandLogo}>{brand}</BSBrandTopRight>
@@ -247,6 +258,7 @@ export const BS_VARIANTS = [
             letterSpacing: '-0.04em',
             display: 'inline-block',
             minHeight: 48,
+            color: themeMode === 'dark' ? '#fff' : '#000',
           }}
         >
           {overviewLabel}
@@ -268,17 +280,18 @@ export const BS_VARIANTS = [
     fields: [
       ...COMMON_HEADER_FIELDS,
       { key: 'bg', label: '풀배경 사진', type: 'image', default: '' },
+      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
     ],
     defaultOverlays: () => [
       { type: 'image', x: 220, y: 350, w: 640, h: 640, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, brand, brandLogo, page, bg }) => (
+    Component: ({ eyebrow, brand, brandLogo, page, bg, gradient = true }) => (
       <Card>
         <FullBleedPhoto src={bg} />
-        <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />
+        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
         <BSEyebrow eyebrow={eyebrow} />
         <BSBrandTopRight brandLogo={brandLogo}>{brand}</BSBrandTopRight>
-        <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
         <NovoundBottomLeft />
         <PageRight page={page} />
       </Card>
@@ -358,7 +371,9 @@ export const BS_VARIANTS = [
 방문자가 자연스럽게 브랜드 무드에 몰입할 수 있도록
 모든 디테일을 일관된 톤으로 설계했습니다.` },
     ],
-    Component: ({ brand, brandLogo, page, pointLabel = 'Selling Point', n, headline, body }) => (
+    Component: ({ brand, brandLogo, page, pointLabel = 'Selling Point', n, headline, body, themeMode }) => {
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
+      return (
       <Card>
         <Eyebrow x={84} y={99} font={CN_FONT_ARCHIVO} size={32} tracking="0.04em" field="pointLabel">
           {`${pointLabel} #${n}`}
@@ -384,12 +399,13 @@ export const BS_VARIANTS = [
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
             overflowWrap: 'anywhere',
+            color: fg,
           }}
           dangerouslySetInnerHTML={typeof headline === 'string' ? { __html: headline } : undefined}
         >
           {typeof headline !== 'string' ? headline : undefined}
         </div>
-        <div style={{ position: 'absolute', left: 84, top: 420, width: 912, height: 3, background: CN_COLORS.black }} />
+        <div style={{ position: 'absolute', left: 84, top: 420, width: 912, height: 3, background: fg }} />
         <BodyText x={84} y={480} w={912} size={32} weight={500} lineHeight={1.65} field="body">
           {body}
         </BodyText>
@@ -409,8 +425,8 @@ export const BS_VARIANTS = [
               style={{
                 width: i === n ? 56 : 18,
                 height: 18,
-                background: i === n ? CN_COLORS.neon : '#E8E8E2',
-                border: `3px solid ${CN_COLORS.black}`,
+                background: i === n ? CN_COLORS.neon : (themeMode === 'dark' ? '#2a2a2a' : '#E8E8E2'),
+                border: `3px solid ${fg}`,
                 transition: 'width .2s',
               }}
             />
@@ -419,7 +435,8 @@ export const BS_VARIANTS = [
         <NovoundBottomLeft />
         <PageRight page={page} />
       </Card>
-    ),
+      );
+    },
   },
 
   /* ── Points summary ── */
@@ -436,8 +453,9 @@ export const BS_VARIANTS = [
         { headline: '굿즈 · 포토존 연동 전략' },
       ]},
     ],
-    Component: ({ brand, brandLogo, page, title, points = [] }) => {
+    Component: ({ brand, brandLogo, page, title, points = [], themeMode }) => {
       const pts = points.map((p, i) => ({ n: i + 1, t: p.headline || '' }));
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
       return (
         <Card>
           <Eyebrow x={84} y={99} font={CN_FONT_ARCHIVO} size={32} tracking="0.04em">
@@ -457,6 +475,7 @@ export const BS_VARIANTS = [
               letterSpacing: '-0.045em',
               lineHeight: 1.1,
               whiteSpace: 'pre-line',
+              color: fg,
             }}
           >
             {title}
@@ -470,6 +489,7 @@ export const BS_VARIANTS = [
               display: 'flex',
               flexDirection: 'column',
               gap: 28,
+              color: fg,
             }}
           >
             {pts.map((p) => (
@@ -480,7 +500,7 @@ export const BS_VARIANTS = [
                   alignItems: 'center',
                   gap: 28,
                   paddingBottom: 24,
-                  borderBottom: `3px solid ${CN_COLORS.black}`,
+                  borderBottom: `3px solid ${fg}`,
                 }}
               >
                 <div

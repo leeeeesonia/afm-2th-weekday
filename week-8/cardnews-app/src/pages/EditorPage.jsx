@@ -2,12 +2,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useProjectStore, selectActiveProject, selectActivePage } from '../store/useProjectStore.js';
 import { getVariant, getTemplate } from '../templates/registry.js';
-import { CARD_W, CARD_H } from '../design/tokens.js';
+import { CARD_W, CARD_H, CN_THEMES } from '../design/tokens.js';
 import { Toolbar } from '../editor/Toolbar.jsx';
 import { Sidebar } from '../editor/Sidebar.jsx';
 import { PageThumbStrip } from '../editor/PageThumbStrip.jsx';
 import { Canvas } from '../editor/Canvas.jsx';
-import { BgPhotoContext } from '../design/primitives.jsx';
+import { BgPhotoContext, ThemeContext } from '../design/primitives.jsx';
 import { BlockRenderer } from '../editor/BlockRenderer.jsx';
 import { useKeyboard } from '../editor/useKeyboard.js';
 
@@ -116,11 +116,26 @@ function GridView({ project, previewMode }) {
   const duplicatePage = useProjectStore((s) => s.duplicatePage);
   const movePage = useProjectStore((s) => s.movePage);
 
+  // 드래그 정렬 상태
+  const [draggingIndex, setDraggingIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
+
+  function handleDrop(toIndex) {
+    if (draggingIndex == null || draggingIndex === toIndex) {
+      setDraggingIndex(null);
+      setOverIndex(null);
+      return;
+    }
+    movePage(draggingIndex, toIndex);
+    setDraggingIndex(null);
+    setOverIndex(null);
+  }
+
   return (
     <div className="p-10">
       <div className="mb-6 flex items-baseline justify-between">
         <div>
-          <div className="t-cap-b text-meta-steel">GRID VIEW · ⌘1 슬라이드</div>
+          <div className="t-cap-b text-meta-steel">GRID VIEW · ⌘1 슬라이드 · 드래그로 페이지 이동</div>
           <h2 className="t-h-lg text-meta-ink-deep mt-1">{project.name}</h2>
         </div>
         <div className="t-cap text-meta-stone">
@@ -131,41 +146,65 @@ function GridView({ project, previewMode }) {
         {project.pages.map((page, i) => {
           const variant = getVariant(page.templateId || project.templateId, page.variantId);
           if (!variant) return null;
-          const Comp = variant.Component;
           const total = project.pages.length;
-          const props = { ...page.props, page: page.props.hidePageNumber ? '' : `${i + 1} / ${total}` };
+          const themeMode = page.themeMode || 'light';
+          const props = { ...page.props, page: project.hidePageNumber ? '' : `${i + 1} / ${total}`, themeMode };
+          const thumbBg = themeMode === 'dark' ? CN_THEMES.dark.bg
+            : themeMode === 'pastel' ? CN_THEMES.pastel.bg
+            : '#fff';
+          const isDragging = draggingIndex === i;
+          const isOver = overIndex === i && draggingIndex !== null && draggingIndex !== i;
           return (
-            <article key={page.id} className="surface-card overflow-hidden">
+            <article
+              key={page.id}
+              draggable
+              onDragStart={(e) => {
+                setDraggingIndex(i);
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', String(i)); } catch {}
+              }}
+              onDragEnter={() => {
+                if (draggingIndex !== null) setOverIndex(i);
+              }}
+              onDragOver={(e) => {
+                if (draggingIndex !== null) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (overIndex !== i) setOverIndex(i);
+                }
+              }}
+              onDragLeave={(e) => {
+                // 자식으로 들어가는 leave는 무시
+                if (e.currentTarget.contains(e.relatedTarget)) return;
+                if (overIndex === i) setOverIndex(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleDrop(i);
+              }}
+              onDragEnd={() => {
+                setDraggingIndex(null);
+                setOverIndex(null);
+              }}
+              className={
+                'surface-card overflow-hidden transition-all cursor-grab active:cursor-grabbing ' +
+                (isDragging ? 'opacity-40 ' : '') +
+                (isOver ? 'ring-2 ring-meta-primary scale-[1.01] ' : '')
+              }
+            >
               <button
                 onClick={() => {
                   setActivePage(i);
                   setViewMode('slide');
                 }}
-                className="relative w-full overflow-hidden rounded-t-[32px] bg-meta-surface text-left"
-                style={{ paddingBottom: `${(CARD_H / CARD_W) * 100}%` }}
+                onMouseDown={(e) => {
+                  // 드래그 의도와 충돌 방지: 부모 article의 draggable이 작동하도록 native default 유지
+                  // (button 자체는 draggable=false라 별도 처리는 불필요)
+                }}
+                className="relative block w-full overflow-hidden rounded-t-[32px] text-left"
+                style={{ aspectRatio: `${CARD_W} / ${CARD_H}`, background: thumbBg }}
               >
-                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      width: CARD_W,
-                      height: CARD_H,
-                      transform: `scale(${1 / 3.6})`,
-                      transformOrigin: 'top left',
-                      position: 'relative',
-                    }}
-                  >
-                    <BgPhotoContext.Provider value={page.props.bgPhoto ? { src: page.props.bgPhoto, scale: page.props.bgPhotoScale || 1, position: page.props.bgPhotoPosition || 'center' } : null}>
-                      <Comp {...props} />
-                    </BgPhotoContext.Provider>
-                    {page.overlays?.length > 0 && (
-                      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                        {page.overlays.map((b) => (
-                          <BlockRenderer key={b.id} block={b} scale={1} isSelected={false} onSelect={() => {}} readonly />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <GridThumb page={page} props={props} variant={variant} themeMode={themeMode} />
                 <span className="absolute top-3 left-3 badge bg-meta-canvas text-meta-ink-deep border border-meta-hairline">
                   {String(i + 1).padStart(2, '0')}
                 </span>
@@ -192,6 +231,51 @@ function GridView({ project, previewMode }) {
             </article>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// 그리드 썸네일 — 부모 너비를 ResizeObserver로 실측해 1080x1350 카드를 정확히 fit
+function GridThumb({ page, props, variant, themeMode = 'light' }) {
+  const wrapRef = useRef(null);
+  const [scale, setScale] = useState(0);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0].contentRect.width;
+      if (w > 0) setScale(w / CARD_W);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const Comp = variant.Component;
+  return (
+    <div ref={wrapRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          width: CARD_W,
+          height: CARD_H,
+          transform: `scale(${scale || 0.0001})`,
+          transformOrigin: 'top left',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+        }}
+      >
+        <ThemeContext.Provider value={themeMode}>
+          <BgPhotoContext.Provider value={page.props.bgPhoto ? { src: page.props.bgPhoto, scale: page.props.bgPhotoScale || 1, position: page.props.bgPhotoPosition || 'center' } : null}>
+            <Comp {...props} />
+          </BgPhotoContext.Provider>
+        </ThemeContext.Provider>
+        {page.overlays?.length > 0 && (
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {page.overlays.map((b) => (
+              <BlockRenderer key={b.id} block={b} scale={1} isSelected={false} onSelect={() => {}} readonly />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

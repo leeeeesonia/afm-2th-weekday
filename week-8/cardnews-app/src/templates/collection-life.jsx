@@ -11,11 +11,14 @@ import {
   FullBleedPhoto,
   Scrim,
   BackgroundFill,
+  useCnTheme,
 } from '../design/primitives.jsx';
 import { BG_FIELDS, bgItems } from './blankFields.js';
 import { CARD_W, CARD_H, CN_FONT, CN_FONT_ARCHIVO, CN_COLORS } from '../design/tokens.js';
 
-function CLEyebrow({ eyebrow = '수집생활', color = '#000' }) {
+function CLEyebrow({ eyebrow = '수집생활', color }) {
+  const mode = useCnTheme();
+  const c = color ?? (mode === 'dark' ? '#fff' : '#000');
   return (
     <span
       data-cn-field="eyebrow"
@@ -28,7 +31,7 @@ function CLEyebrow({ eyebrow = '수집생활', color = '#000' }) {
         fontSize: 35,
         letterSpacing: '-0.04em',
         lineHeight: 1.2,
-        color,
+        color: c,
       }}
     >
       {eyebrow}
@@ -37,6 +40,8 @@ function CLEyebrow({ eyebrow = '수집생활', color = '#000' }) {
 }
 
 function CLCoverTopRight({ children = "Suji's Life", topRightLogo }) {
+  const mode = useCnTheme();
+  const c = mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
   if (topRightLogo) {
     return (
       <img
@@ -50,6 +55,7 @@ function CLCoverTopRight({ children = "Suji's Life", topRightLogo }) {
           width: 'auto',
           display: 'block',
           opacity: 0.85,
+          filter: mode === 'dark' ? 'brightness(0) invert(1)' : 'none',
         }}
       />
     );
@@ -66,7 +72,7 @@ function CLCoverTopRight({ children = "Suji's Life", topRightLogo }) {
         fontWeight: 500,
         letterSpacing: '0.02em',
         lineHeight: 1,
-        color: 'rgba(0,0,0,0.5)',
+        color: c,
       }}
     >
       {children}
@@ -74,8 +80,12 @@ function CLCoverTopRight({ children = "Suji's Life", topRightLogo }) {
   );
 }
 
-function CLBodyTopRight({ children = 'WORKROOM', color = '#000', topRightLogo }) {
-  const sub = color === '#fff' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
+function CLBodyTopRight({ children = 'WORKROOM', color, topRightLogo }) {
+  const mode = useCnTheme();
+  // color 명시(사진 위 #fff) 우선. 미지정이면 테마 자동.
+  const fg = color ?? (mode === 'dark' ? '#fff' : '#000');
+  const isWhite = fg === '#fff' || fg === '#FFFFFF';
+  const sub = isWhite ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
   if (topRightLogo) {
     return (
       <img
@@ -89,7 +99,7 @@ function CLBodyTopRight({ children = 'WORKROOM', color = '#000', topRightLogo })
           width: 'auto',
           display: 'block',
           opacity: 0.85,
-          filter: color === '#fff' ? 'brightness(0) invert(1)' : 'none',
+          filter: isWhite ? 'brightness(0) invert(1)' : 'none',
         }}
       />
     );
@@ -137,41 +147,44 @@ export const CL_VARIANTS = [
       { key: 'title', label: '메인 타이틀', type: 'text', default: '추구미와 현재형이 공존하는 홈오피스' },
     ],
     // 클라우드 스티커·우하단 페이지표기 제거. T1 좌하단 패턴 (bottom 200) + title 88 + wordEng 32.
-    Component: ({ eyebrow, topRight, topRightLogo, wordEng, title }) => (
-      <Card>
-        <CLEyebrow eyebrow={eyebrow} />
-        <CLCoverTopRight topRightLogo={topRightLogo}>{topRight}</CLCoverTopRight>
-        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
-          <div
-            data-cn-field="title"
-            data-cn-multiline="1"
-            style={{
-              fontWeight: 800,
-              fontSize: 88,
-              lineHeight: 1.15,
-              letterSpacing: '-0.045em',
-              whiteSpace: 'pre-line',
-              wordBreak: 'keep-all',
-              overflowWrap: 'anywhere',
-            }}
-            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
-          />
-          <div
-            data-cn-field="wordEng"
-            style={{
-              marginTop: 30,
-              fontFamily: CN_FONT_ARCHIVO,
-              fontWeight: 500,
-              fontSize: 32,
-              letterSpacing: '0.16em',
-              lineHeight: 1,
-            }}
-          >
-            {wordEng}
+    Component: ({ eyebrow, topRight, topRightLogo, wordEng, title, themeMode }) => {
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
+      return (
+        <Card>
+          <CLEyebrow eyebrow={eyebrow} />
+          <CLCoverTopRight topRightLogo={topRightLogo}>{topRight}</CLCoverTopRight>
+          <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT, color: fg }}>
+            <div
+              data-cn-field="title"
+              data-cn-multiline="1"
+              style={{
+                fontWeight: 800,
+                fontSize: 88,
+                lineHeight: 1.15,
+                letterSpacing: '-0.045em',
+                whiteSpace: 'pre-line',
+                wordBreak: 'keep-all',
+                overflowWrap: 'anywhere',
+              }}
+              dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+            />
+            <div
+              data-cn-field="wordEng"
+              style={{
+                marginTop: 30,
+                fontFamily: CN_FONT_ARCHIVO,
+                fontWeight: 500,
+                fontSize: 32,
+                letterSpacing: '0.16em',
+                lineHeight: 1,
+              }}
+            >
+              {wordEng}
+            </div>
           </div>
-        </div>
-      </Card>
-    ),
+        </Card>
+      );
+    },
   },
 
   /* ── Cover 2 line ── */
@@ -183,53 +196,55 @@ export const CL_VARIANTS = [
       ...COVER_FIELDS,
       { key: 'title', label: '메인 타이틀 (2줄)', type: 'textarea', default: '추구미와 현재형이\n공존하는 홈오피스' },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, wordEng, title }) => (
-      <Card>
-        <CLEyebrow eyebrow={eyebrow} />
-        <CLCoverTopRight topRightLogo={topRightLogo}>{topRight}</CLCoverTopRight>
-        <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT }}>
-          <div
-            data-cn-field="title"
-            data-cn-multiline="1"
-            style={{
-              fontWeight: 800,
-              fontSize: 84,  // 2줄 variant
-              lineHeight: 1.15,
-              letterSpacing: '-0.045em',
-              whiteSpace: 'pre-line',
-              wordBreak: 'keep-all',
-              overflowWrap: 'anywhere',
-            }}
-            dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
-          />
-          <div
-            data-cn-field="wordEng"
-            style={{
-              marginTop: 30,
-              fontFamily: CN_FONT_ARCHIVO,
-              fontWeight: 500,
-              fontSize: 32,
-              letterSpacing: '0.16em',
-              lineHeight: 1,
-            }}
-          >
-            {wordEng}
+    Component: ({ eyebrow, topRight, topRightLogo, wordEng, title, themeMode }) => {
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
+      return (
+        <Card>
+          <CLEyebrow eyebrow={eyebrow} />
+          <CLCoverTopRight topRightLogo={topRightLogo}>{topRight}</CLCoverTopRight>
+          <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT, color: fg }}>
+            <div
+              data-cn-field="title"
+              data-cn-multiline="1"
+              style={{
+                fontWeight: 800,
+                fontSize: 84,
+                lineHeight: 1.15,
+                letterSpacing: '-0.045em',
+                whiteSpace: 'pre-line',
+                wordBreak: 'keep-all',
+                overflowWrap: 'anywhere',
+              }}
+              dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }}
+            />
+            <div
+              data-cn-field="wordEng"
+              style={{
+                marginTop: 30,
+                fontFamily: CN_FONT_ARCHIVO,
+                fontWeight: 500,
+                fontSize: 32,
+                letterSpacing: '0.16em',
+                lineHeight: 1,
+              }}
+            >
+              {wordEng}
+            </div>
           </div>
-        </div>
-      </Card>
-    ),
+        </Card>
+      );
+    },
   },
 
-  /* ── Body text ── */
+  /* ── Body text — 큰 제목 / 소제목 / 본문 — T3 bi-body-text와 동일 패턴 ── */
   {
     id: 'cl-body-text',
-    label: '본문 · 큰 제목 + 형광 + 본문',
+    label: '본문 · 큰 제목 + 소제목 + 본문',
     category: 'body',
     fields: [
       ...BODY_COMMON,
       { key: 'heading', label: '큰 제목', type: 'textarea', default: '추구미와 현재형이\n공존하는 책상 한 칸' },
-      { key: 'highlight', label: '형광 강조', type: 'text', default: '오래 곁에 둘 물건들로만 채운 공간' },
-      { key: 'highlightRest', label: '강조 뒤 텍스트', type: 'text', default: ', 그 안에 담긴 취향.' },
+      { key: 'subhead', label: '소제목', type: 'textarea', default: '오래 곁에 둘 물건들로만 채운 공간, 그 안에 담긴 취향.' },
       { key: 'body', label: '본문', type: 'textarea', default:
 `작업과 휴식의 경계를 부드럽게 풀어주는 홈오피스.
 오랫동안 곁에 둘 물건들만 골라 두고, 매일 손이 가는
@@ -237,41 +252,48 @@ export const CL_VARIANTS = [
 
 좋아하는 무드와 일하는 모드가 함께 머무는 공간.` },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, caption, page, heading, highlight, highlightRest, body }) => (
-      <Card>
-        <CLEyebrow eyebrow={eyebrow} />
-        <CLBodyTopRight topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
-        <Heading01 x={84} y={220} w={912} size={56} field="heading">
-          {heading}
-        </Heading01>
-        <div
-          style={{
-            position: 'absolute',
-            left: 84,
-            top: 470,
-            width: 912,
-            fontFamily: CN_FONT,
-            fontWeight: 700,
-            fontSize: 32,
-            letterSpacing: '-0.04em',
-            lineHeight: 1.5,
-          }}
-        >
-          {/* 형광 강조와 뒤 텍스트 모두 인플레이스 클릭 편집 가능 */}
-          <span
-            data-cn-field="highlight"
-            style={{ background: `linear-gradient(transparent 62%, ${CN_COLORS.neon} 62%)`, padding: '0 4px' }}
-          >
-            {highlight}
-          </span>
-          <span data-cn-field="highlightRest">{highlightRest}</span>
-        </div>
-        <BodyText x={84} y={620} w={912} size={32} weight={500} lineHeight={1.7} field="body">
-          {body}
-        </BodyText>
-        <CardFooter left={caption} right={page} leftField="caption" />
-      </Card>
-    ),
+    Component: ({ eyebrow, topRight, topRightLogo, caption, page, heading, subhead, highlight, highlightRest, body, themeMode }) => {
+      // 기존 highlight/highlightRest 분리 데이터 → subhead로 자동 마이그레이션
+      const subheadHtml = subhead || (
+        highlight || highlightRest
+          ? `${highlight ? `<mark class="cn-hl">${highlight}</mark>` : ''}${highlightRest || ''}`
+          : ''
+      );
+      const fg = themeMode === 'dark' ? '#fff' : '#000';
+      return (
+        <Card>
+          <CLEyebrow eyebrow={eyebrow} />
+          <CLBodyTopRight topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
+          <Heading01 x={84} y={220} w={912} size={56} field="heading">
+            {heading}
+          </Heading01>
+          {/* 소제목 — 형광·볼드는 드래그 후 floating bar로 직접 적용. 색은 테마 따름. */}
+          <div
+            data-cn-field="subhead"
+            data-cn-multiline="1"
+            style={{
+              position: 'absolute',
+              left: 84,
+              top: 470,
+              width: 912,
+              fontFamily: CN_FONT,
+              fontWeight: 700,
+              fontSize: 32,
+              letterSpacing: '-0.04em',
+              lineHeight: 1.5,
+              whiteSpace: 'pre-line',
+              wordBreak: 'keep-all',
+              color: fg,
+            }}
+            dangerouslySetInnerHTML={{ __html: subheadHtml }}
+          />
+          <BodyText x={84} y={620} w={912} size={32} weight={500} lineHeight={1.7} field="body">
+            {body}
+          </BodyText>
+          <CardFooter left={caption} right={page} leftField="caption" />
+        </Card>
+      );
+    },
   },
 
   /* ── Body overlay (자유 드래그) ── */
@@ -282,17 +304,18 @@ export const CL_VARIANTS = [
     fields: [
       ...BODY_COMMON,
       { key: 'bg', label: '풀배경 사진', type: 'image', default: '' },
+      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
     ],
     defaultOverlays: () => [
       { type: 'image', x: 180, y: 380, w: 720, h: 720, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, caption, page, bg }) => (
+    Component: ({ eyebrow, topRight, topRightLogo, caption, page, bg, gradient = true }) => (
       <Card>
         <FullBleedPhoto src={bg} />
-        <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />
+        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
         <CLEyebrow eyebrow={eyebrow} />
         <CLBodyTopRight topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
-        <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
         <CardFooter left={caption} right={page} leftField="caption" />
       </Card>
     ),
@@ -312,7 +335,7 @@ export const CL_VARIANTS = [
       { type: 'image', x: 84, y: 420, w: 280, h: 265, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
       { type: 'image', x: 716, y: 880, w: 320, h: 305, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, caption, page, body }) => {
+    Component: ({ eyebrow, topRight, topRightLogo, caption, page, body, themeMode }) => {
       const a = { x: 84, y: 420, w: 280, h: 265 };
       const b = { x: 716, y: 880, w: 320, h: 305 };
       const a1 = { x: a.x + a.w, y: a.y + a.h };
@@ -321,6 +344,7 @@ export const CL_VARIANTS = [
       const b1 = { x: b.x, y: b.y };
       const elbow2 = { x: b1.x - 70, y: b1.y - 100 };
       const end2 = { x: elbow2.x - 200, y: elbow2.y };
+      const stroke = themeMode === 'dark' ? CN_COLORS.white : CN_COLORS.black;
       return (
         <Card>
           <CLEyebrow />
@@ -332,7 +356,7 @@ export const CL_VARIANTS = [
             <polyline
               points={`${a1.x},${a1.y} ${elbow1.x},${elbow1.y} ${end1.x},${end1.y}`}
               fill="none"
-              stroke={CN_COLORS.black}
+              stroke={stroke}
               strokeWidth="3"
               strokeLinecap="square"
               strokeLinejoin="miter"
@@ -340,7 +364,7 @@ export const CL_VARIANTS = [
             <polyline
               points={`${b1.x},${b1.y} ${elbow2.x},${elbow2.y} ${end2.x},${end2.y}`}
               fill="none"
-              stroke={CN_COLORS.black}
+              stroke={stroke}
               strokeWidth="3"
               strokeLinecap="square"
               strokeLinejoin="miter"
@@ -364,11 +388,13 @@ export const CL_VARIANTS = [
 `오랫동안 곁에 둘 물건들로 채운 책상 한 칸.
 좋아하는 무드와 일하는 모드가 함께 머물고,
 매일 손이 닿는 도구만 자리를 지킵니다.` },
+      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, caption, page, photo, body }) => (
+    Component: ({ eyebrow, topRight, topRightLogo, caption, page, photo, body, gradient = true, textShadow = false }) => (
       <Card>
         <FullBleedPhoto src={photo} />
-        <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />
+        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <CLEyebrow eyebrow={eyebrow} color="#fff" />
         <CLBodyTopRight color="#fff" topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
         <div
@@ -387,7 +413,7 @@ export const CL_VARIANTS = [
             color: '#fff',
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            textShadow: '0 1px 12px rgba(0,0,0,0.35)',
+            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
           }}
         >
           {body}
