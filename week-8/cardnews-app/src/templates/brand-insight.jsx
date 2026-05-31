@@ -87,9 +87,8 @@ function BIEyebrowSub({ children }) {
         lineHeight: 1,
         color: c,
       }}
-    >
-      {children}
-    </span>
+      dangerouslySetInnerHTML={{ __html: typeof children === 'string' ? children : '' }}
+    />
   );
 }
 
@@ -148,9 +147,8 @@ export const BI_VARIANTS = [
                 letterSpacing: '0.18em',
                 lineHeight: 1,
               }}
-            >
-              {wordEng}
-            </div>
+              dangerouslySetInnerHTML={{ __html: typeof wordEng === 'string' ? wordEng : '' }}
+            />
           </div>
         </Card>
       );
@@ -201,9 +199,8 @@ export const BI_VARIANTS = [
                 letterSpacing: '0.18em',
                 lineHeight: 1,
               }}
-            >
-              {wordEng}
-            </div>
+              dangerouslySetInnerHTML={{ __html: typeof wordEng === 'string' ? wordEng : '' }}
+            />
           </div>
         </Card>
       );
@@ -512,13 +509,12 @@ export const BI_VARIANTS = [
             }}
           >
             {/* 브랜드 — 형광 강제 제거. 필요하면 사용자가 드래그 → floating bar로 직접 적용. */}
-            <span data-cn-field="brand">{brand}</span>
+            <span data-cn-field="brand" dangerouslySetInnerHTML={{ __html: typeof brand === 'string' ? brand : '' }} />
             <div
               data-cn-field="subtitle"
               style={{ marginTop: 12, fontSize: 32, fontWeight: 500, letterSpacing: '-0.04em' }}
-            >
-              {subtitle}
-            </div>
+              dangerouslySetInnerHTML={{ __html: typeof subtitle === 'string' ? subtitle : '' }}
+            />
           </div>
           {/* 표 영역 — 서브카피 아래(top 440)와 하단 캡션/페이지 표기 위(bottom 180) 사이에서 행 수에 따라 자동 가운데 정렬.
               2/3/4/5행 모두 빈 공간을 균등하게 차지 (justify-content: center). */}
@@ -546,9 +542,8 @@ export const BI_VARIANTS = [
                   minHeight: 120,
                 }}
               >
-                {/* 라벨 셀 — 인플레이스 편집. data-cn-field에 dotted path 사용 → store가 rows[i].label로 업데이트 */}
+                {/* 라벨 셀 — flex 가운데 정렬은 외곽이 담당, 안쪽 div가 인플레이스 편집 대상 */}
                 <div
-                  data-cn-field={`rows.${i}.label`}
                   style={{
                     minWidth: 180,
                     background: CN_COLORS.lemon,
@@ -556,32 +551,46 @@ export const BI_VARIANTS = [
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontFamily: CN_FONT,
-                    fontWeight: 800,
-                    fontSize: 30,
-                    letterSpacing: '-0.04em',
                   }}
                 >
-                  {row.label}
+                  <div
+                    data-cn-field={`rows.${i}.label`}
+                    style={{
+                      fontFamily: CN_FONT,
+                      fontWeight: 800,
+                      fontSize: 30,
+                      letterSpacing: '-0.04em',
+                      textAlign: 'center',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: typeof row.label === 'string' ? row.label : '' }}
+                  />
                 </div>
-                {/* 값 셀 — 인플레이스 편집 */}
+                {/* 값 셀 — 외곽은 flex 가운데 정렬, 안쪽 div가 실제 인플레이스 편집 대상.
+                    contentEditable이 직접 flex 컨테이너에 붙으면 줄바꿈/볼드/정렬이 깨지는 문제 회피. */}
                 <div
-                  data-cn-field={`rows.${i}.value`}
-                  data-cn-multiline="1"
                   style={{
                     flex: 1,
                     padding: '24px 32px',
                     display: 'flex',
                     alignItems: 'center',
-                    fontFamily: CN_FONT,
-                    fontWeight: 500,
-                    fontSize: 28,
-                    lineHeight: 1.45,
-                    letterSpacing: '-0.04em',
-                    whiteSpace: 'pre-line',
                   }}
                 >
-                  {row.value}
+                  <div
+                    data-cn-field={`rows.${i}.value`}
+                    data-cn-multiline="1"
+                    style={{
+                      width: '100%',
+                      fontFamily: CN_FONT,
+                      fontWeight: 500,
+                      fontSize: 28,
+                      lineHeight: 1.45,
+                      letterSpacing: '-0.04em',
+                      whiteSpace: 'pre-line',
+                      wordBreak: 'keep-all',
+                      textAlign: 'left',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: typeof row.value === 'string' ? row.value : '' }}
+                  />
                 </div>
               </div>
             ))}

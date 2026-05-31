@@ -335,13 +335,24 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
       window.addEventListener('pointerup', onUp);
     }
 
+    // 외부 텍스트 복붙 시 폰트/사이즈/색상 등 source 스타일이 따라오는 문제 차단.
+    // contentEditable에서 paste 이벤트를 가로채 plain text만 caret에 삽입 → 부모 스타일 그대로 유지.
+    function onPaste(e) {
+      const el = e.target?.closest?.('[data-cn-field]');
+      if (!el || el.getAttribute('contenteditable') !== 'true') return;
+      e.preventDefault();
+      const text = e.clipboardData?.getData('text/plain') || '';
+      document.execCommand('insertText', false, text);
+    }
     root.addEventListener('mousedown', onMouseDown);
     root.addEventListener('blur', onBlur, true);
     root.addEventListener('keydown', onKey);
+    root.addEventListener('paste', onPaste);
     return () => {
       root.removeEventListener('mousedown', onMouseDown);
       root.removeEventListener('blur', onBlur, true);
       root.removeEventListener('keydown', onKey);
+      root.removeEventListener('paste', onPaste);
     };
   }, [editable, pageIndex, updatePageProp, page?.overlays, scale, selectedBlockIds, setSelectedBlocks, clearSelection]);
 
@@ -408,6 +419,7 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
                 key={b.id}
                 block={b}
                 allBlocks={overlays}
+                selectedBlockIds={selectedBlockIds}
                 scale={sc}
                 isSelected={selectedBlockIds.includes(b.id)}
                 onSelect={handleSelectBlock}

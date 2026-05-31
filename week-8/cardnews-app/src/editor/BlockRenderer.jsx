@@ -257,15 +257,15 @@ function BlockContent({ block, editingText }) {
   return null;
 }
 
-export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSelect, readonly = false }) {
+export function BlockRenderer({ block, allBlocks = [], selectedBlockIds = [], scale, isSelected, onSelect, readonly = false }) {
   const ref = useRef(null);
   const updateBlock = useProjectStore((s) => s.updateBlock);
   const duplicateBlocks = useProjectStore((s) => s.duplicateBlocks);
   const [editingText, setEditingText] = React.useState(false);
 
   // 최신 함수/값을 ref로 보관 → useEffect deps 변동으로 인한 cleanup 방지
-  const latestRef = useRef({ block, allBlocks, scale, updateBlock, duplicateBlocks, onSelect, isSelected, readonly });
-  latestRef.current = { block, allBlocks, scale, updateBlock, duplicateBlocks, onSelect, isSelected, readonly };
+  const latestRef = useRef({ block, allBlocks, selectedBlockIds, scale, updateBlock, duplicateBlocks, onSelect, isSelected, readonly });
+  latestRef.current = { block, allBlocks, selectedBlockIds, scale, updateBlock, duplicateBlocks, onSelect, isSelected, readonly };
 
   // readonly면 모든 인터랙션 차단 — 썸네일/그리드 미리보기용
   useEffect(() => {
@@ -308,8 +308,13 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         return;
       }
       e.stopPropagation();
-      const { block: b, onSelect, duplicateBlocks } = getLatest();
-      onSelect(b.id, { shift: e.shiftKey, alt: e.altKey });
+      const { block: b, onSelect, duplicateBlocks, selectedBlockIds, allBlocks } = getLatest();
+      // 이미 멀티 선택된 블록을 클릭하면 selection 유지 (그룹 드래그 진입용).
+      // shift+클릭은 항상 onSelect로 토글 처리.
+      const inMulti = Array.isArray(selectedBlockIds) && selectedBlockIds.length > 1 && selectedBlockIds.includes(b.id);
+      if (!inMulti || e.shiftKey) {
+        onSelect(b.id, { shift: e.shiftKey, alt: e.altKey });
+      }
       if (b.locked) return;
 
       // Alt+드래그 = 복제하여 새 블록 드래그
@@ -325,6 +330,13 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
       const stickerTextEl = b.type === 'sticker' ? e.target.closest('[data-cn-sticker-text]') : null;
       const textBlockEl = b.type === 'text' ? e.target.closest('[data-block-text]') : null;
 
+      // 멀티 선택 상태 → 그룹 드래그용 원본 위치 기록 (선택된 모든 블록의 x/y).
+      // 인라인 편집 진입과 충돌 방지 위해, 그룹 모드일 땐 텍스트 hit 무시.
+      const groupOriginals = inMulti
+        ? allBlocks.filter((blk) => selectedBlockIds.includes(blk.id) && !blk.locked)
+            .map((blk) => ({ id: blk.id, x: blk.x, y: blk.y }))
+        : null;
+
       dragState = {
         startX: e.clientX,
         startY: e.clientY,
@@ -332,8 +344,9 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         origY: b.y,
         type: 'move',
         pointerId: e.pointerId,
-        stickerTextEl,
-        textBlockEl,
+        stickerTextEl: groupOriginals ? null : stickerTextEl,
+        textBlockEl: groupOriginals ? null : textBlockEl,
+        groupOriginals,
         didMove: false,
       };
       attachDragListeners(e.pointerId);
@@ -503,7 +516,16 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         } else {
           publishSnapGuides([]);
         }
-        updateBlock(b.id, { x: newX, y: newY });
+        // 그룹 드래그 — 그랩한 블록 기준 snap-adjusted delta를 모든 선택 블록에 동일하게 적용
+        if (Array.isArray(dragState.groupOriginals) && dragState.groupOriginals.length > 1) {
+          const finalDx = newX - dragState.origX;
+          const finalDy = newY - dragState.origY;
+          for (const orig of dragState.groupOriginals) {
+            updateBlock(orig.id, { x: orig.x + finalDx, y: orig.y + finalDy });
+          }
+        } else {
+          updateBlock(b.id, { x: newX, y: newY });
+        }
       } else if (dragState.type === 'resize') {
         const dx = (e.clientX - dragState.startX) / sc;
         const dy = (e.clientY - dragState.startY) / sc;
@@ -706,9 +728,17 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         }
         ev.stopPropagation();
       }
+      // 외부 텍스트 복붙 시 source 폰트/사이즈 따라오는 문제 차단 → plain text만 삽입
+      function onPaste(ev) {
+        ev.preventDefault();
+        const text = ev.clipboardData?.getData('text/plain') || '';
+        document.execCommand('insertText', false, text);
+        hasInput = true;
+      }
       inner.addEventListener('input', onInput);
       inner.addEventListener('blur', commit);
       inner.addEventListener('keydown', onKey);
+      inner.addEventListener('paste', onPaste);
     }
 
     function onDblClick(e) {
@@ -763,11 +793,18 @@ export function BlockRenderer({ block, allBlocks = [], scale, isSelected, onSele
         inner.blur();
       }
     }
+    function onPaste(e) {
+      e.preventDefault();
+      const text = e.clipboardData?.getData('text/plain') || '';
+      document.execCommand('insertText', false, text);
+    }
     inner.addEventListener('blur', onBlur);
     inner.addEventListener('keydown', onKey);
+    inner.addEventListener('paste', onPaste);
     return () => {
       inner.removeEventListener('blur', onBlur);
       inner.removeEventListener('keydown', onKey);
+      inner.removeEventListener('paste', onPaste);
     };
   }, [editingText, block.id]);
 
