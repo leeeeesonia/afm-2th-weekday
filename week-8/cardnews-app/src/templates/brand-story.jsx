@@ -15,6 +15,7 @@ import {
 } from '../design/primitives.jsx';
 import { BG_FIELDS, bgItems } from './blankFields.js';
 import { SubFrame } from '../design/stickers.jsx';
+import { useProjectStore, selectActiveProject } from '../store/useProjectStore.js';
 import { CARD_W, CN_FONT, CN_FONT_ARCHIVO, CN_COLORS } from '../design/tokens.js';
 
 function BSEyebrow({ eyebrow = 'Project Review' }) {
@@ -280,22 +281,26 @@ export const BS_VARIANTS = [
     fields: [
       ...COMMON_HEADER_FIELDS,
       { key: 'bg', label: '풀배경 사진', type: 'image', default: '' },
-      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
     ],
     defaultOverlays: () => [
       { type: 'image', x: 220, y: 350, w: 640, h: 640, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, brand, brandLogo, page, bg, gradient = true }) => (
+    Component: ({ eyebrow, brand, brandLogo, page, bg, scrim, gradient }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      return (
       <Card>
         <FullBleedPhoto src={bg} />
-        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
         <BSEyebrow eyebrow={eyebrow} />
         <BSBrandTopRight brandLogo={brandLogo}>{brand}</BSBrandTopRight>
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
         <NovoundBottomLeft />
         <PageRight page={page} />
       </Card>
-    ),
+      );
+    },
   },
 
   /* ── Overlay v2 ── */
@@ -364,7 +369,7 @@ export const BS_VARIANTS = [
     fields: [
       ...COMMON_HEADER_FIELDS,
       { key: 'pointLabel', label: '포인트 라벨', type: 'text', default: 'Selling Point' },
-      { key: 'n', label: '포인트 번호 (1~3)', type: 'number', default: 1, min: 1, max: 3 },
+      { key: 'n', label: '포인트 번호 (1~5)', type: 'number', default: 1, min: 1, max: 5 },
       { key: 'headline', label: '헤드라인 (1~2줄, 자동 수직 정렬)', type: 'textarea', default: '공간감을 극대화한 컬러 무드' },
       { key: 'body', label: '본문', type: 'textarea', default:
 `브랜드의 시그니처 컬러를 공간 전반에 확장시켜
@@ -373,6 +378,17 @@ export const BS_VARIANTS = [
     ],
     Component: ({ brand, brandLogo, page, pointLabel = 'Selling Point', n, headline, body, themeMode }) => {
       const fg = themeMode === 'dark' ? '#fff' : '#000';
+      // 채워진 selling-point 페이지들의 n 모음 — 도형 반응형 표시용
+      const project = useProjectStore(selectActiveProject);
+      const filledNs = new Set(
+        (project?.pages || [])
+          .filter((p) => p.variantId === 'bs-selling-point' && (p.props.headline || '').trim() !== '')
+          .map((p) => p.props.n)
+          .filter((nn) => typeof nn === 'number' && nn >= 1 && nn <= 5)
+      );
+      // 현재 페이지(아직 headline 없을 수도 있음)도 포함시켜야 자기 도형은 항상 보임
+      if (typeof n === 'number') filledNs.add(n);
+      const showNums = [1, 2, 3, 4, 5].filter((i) => filledNs.has(i));
       return (
       <Card>
         <Eyebrow x={84} y={99} font={CN_FONT_ARCHIVO} size={32} tracking="0.04em" field="pointLabel">
@@ -419,7 +435,7 @@ export const BS_VARIANTS = [
             alignItems: 'center',
           }}
         >
-          {[1, 2, 3].map((i) => (
+          {showNums.map((i) => (
             <div
               key={i}
               style={{
@@ -442,7 +458,7 @@ export const BS_VARIANTS = [
   /* ── Points summary ── */
   {
     id: 'bs-points-summary',
-    label: 'Selling Points · 요약 3행',
+    label: 'Selling Points · 요약',
     category: 'body',
     fields: [
       ...COMMON_HEADER_FIELDS,
@@ -454,7 +470,11 @@ export const BS_VARIANTS = [
       ]},
     ],
     Component: ({ brand, brandLogo, page, title, points = [], themeMode }) => {
-      const pts = points.map((p, i) => ({ n: i + 1, t: p.headline || '' }));
+      // 최대 5행 + 빈 헤드라인 슬롯은 제외 (도형 노출 조건과 일치)
+      const pts = points
+        .slice(0, 5)
+        .map((p, i) => ({ n: i + 1, t: p.headline || '' }))
+        .filter((p) => p.t.trim() !== '');
       const fg = themeMode === 'dark' ? '#fff' : '#000';
       return (
         <Card>
@@ -480,14 +500,17 @@ export const BS_VARIANTS = [
           >
             {title}
           </div>
+          {/* 제목 아래(top 440) ~ NovoundBottomLeft 위(bottom 200) 사이에서 2~5행 모두 자동 가운데 정렬. */}
           <div
             style={{
               position: 'absolute',
               left: 84,
               right: 84,
-              top: 600,
+              top: 440,
+              bottom: 200,
               display: 'flex',
               flexDirection: 'column',
+              justifyContent: 'center',
               gap: 28,
               color: fg,
             }}
@@ -538,18 +561,22 @@ export const BS_VARIANTS = [
   /* ── 빈 페이지 (내지) ── */
   {
     id: 'bs-blank',
-    label: '빈 페이지 · 머릿말/꼬릿말 유지',
+    label: '빈 페이지 · 2/3분할',
     category: 'body',
     fields: [
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Project Review' },
       { key: 'brand', label: '브랜드 (우상단)', type: 'text', default: 'COCOLOCKER' },
-      ...BG_FIELDS,
     ],
-    Component: ({ eyebrow, brand, brandLogo, page, bgType, bgDir, bg1, bg2, bg3 }) => {
-      const onPhoto = bgType && bgType !== 'none';
+    Component: (props) => {
+      const { eyebrow, brand, brandLogo, page } = props;
+      const bgType = props.bgType || 'none';
+      const sm = props.scrim || 'none';
+      const onPhoto = bgType !== 'none';
       return (
         <Card>
-          <BackgroundFill type={bgType} dir={bgDir} items={bgItems({ bg1, bg2, bg3 })} />
+          <BackgroundFill type={bgType} dir={props.bgDir || 'h'} items={bgItems(props)} />
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
           <BSEyebrow eyebrow={eyebrow} />
           <BSBrandTopRight brandLogo={brandLogo}>{brand}</BSBrandTopRight>
           <NovoundBottomLeft tone={onPhoto ? 'light' : 'dark'} />

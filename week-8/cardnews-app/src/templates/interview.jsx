@@ -20,7 +20,7 @@ const COVER_FIELDS = [
   { key: 'title', label: '메인 타이틀', type: 'textarea', default: '브랜드기획자 이수지를\n소개합니다.' },
   { key: 'wordmark', label: '워드마크', type: 'text', default: '@oyatlog' },
   { key: 'photo', label: '배경 사진', type: 'image', default: '' },
-  { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+  { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
   { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
 ];
 
@@ -194,10 +194,13 @@ export const IV_VARIANTS = [
     label: '표지 2 · 사진 위 오버레이',
     category: 'cover',
     fields: COVER_FIELDS,
-    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo, gradient = true, textShadow = false }) => (
+    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo, scrim, gradient, textShadow = false }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      return (
       <Card>
         <FullBleedPhoto src={photo} />
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 70%)" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 70%)" />}
         <Eyebrow x={84} y={99} color="#fff" font={CN_FONT_ARCHIVO} size={32} weight={700} tracking="0.04em">
           {eyebrow}
         </Eyebrow>
@@ -247,7 +250,8 @@ export const IV_VARIANTS = [
           </div>
         </div>
       </Card>
-    ),
+      );
+    },
   },
 
   /* ── Cover 3 — horizontal split ── */
@@ -340,16 +344,15 @@ export const IV_VARIANTS = [
   },
 
   /* ── Cover 4 — neon poster (MAIN) ── */
+  // 네온 박스가 타이틀 가독성 책임지므로 scrim/textShadow 토글 제외 + 그라디언트 효과 자체 제거.
   {
     id: 'iv-cover-poster',
     label: '표지 4 · 네온 박스 (MAIN)',
     category: 'cover',
-    fields: COVER_FIELDS,
-    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo, gradient = true }) => (
+    fields: COVER_FIELDS.filter((f) => f.key !== 'scrim' && f.key !== 'textShadow'),
+    Component: ({ eyebrow, sub, title, wordmark, wordmarkLogo, photo }) => (
       <Card>
         <FullBleedPhoto src={photo} />
-        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)" />}
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 100%)" />}
         <Eyebrow x={84} y={99} color="#fff" font={CN_FONT_ARCHIVO} size={32} weight={700} tracking="0.04em">
           {eyebrow}
         </Eyebrow>
@@ -585,18 +588,22 @@ export const IV_VARIANTS = [
   /* ── 빈 페이지 (내지) ── */
   {
     id: 'iv-blank',
-    label: '빈 페이지 · 머릿말/꼬릿말 유지',
+    label: '빈 페이지 · 2/3분할',
     category: 'body',
     fields: [
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Interview' },
       { key: 'wordmark', label: '워드마크 (우상단)', type: 'text', default: '@oyatlog' },
-      ...BG_FIELDS,
     ],
-    Component: ({ eyebrow = 'Interview', wordmark, wordmarkLogo, page, bgType, bgDir, bg1, bg2, bg3 }) => {
-      const onPhoto = bgType && bgType !== 'none';
+    Component: (props) => {
+      const { eyebrow = 'Interview', wordmark, wordmarkLogo, page } = props;
+      const bgType = props.bgType || 'none';
+      const sm = props.scrim || 'none';
+      const onPhoto = bgType !== 'none';
       return (
         <Card>
-          <BackgroundFill type={bgType} dir={bgDir} items={bgItems({ bg1, bg2, bg3 })} />
+          <BackgroundFill type={bgType} dir={props.bgDir || 'h'} items={bgItems(props)} />
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
           <Eyebrow
             x={84}
             y={99}

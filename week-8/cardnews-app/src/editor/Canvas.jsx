@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { getVariant } from '../templates/registry.js';
 import { CARD_W, CARD_H, CN_THEMES } from '../design/tokens.js';
-import { ThemeContext, BgPhotoContext } from '../design/primitives.jsx';
+import { ThemeContext, BgPhotoContext, BlankBgUploadContext } from '../design/primitives.jsx';
 import { BlockRenderer } from './BlockRenderer.jsx';
 
 /* ───── selection helpers ───── */
@@ -395,7 +395,9 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
       >
         <ThemeContext.Provider value={themeMode}>
           <BgPhotoContext.Provider value={page.props.bgPhoto ? { src: page.props.bgPhoto, scale: page.props.bgPhotoScale || 1, position: page.props.bgPhotoPosition || 'center' } : null}>
-            <Comp {...computedProps} />
+            <BlankBgUploadContext.Provider value={editable ? (slotIdx, url) => updatePageProp(pageIndex, `bg${slotIdx + 1}`, url, { commit: true }) : null}>
+              <Comp {...computedProps} />
+            </BlankBgUploadContext.Provider>
           </BgPhotoContext.Provider>
         </ThemeContext.Provider>
         {/* Overlays — 부모는 클릭 패스스루(자식 블록만 잡음) */}

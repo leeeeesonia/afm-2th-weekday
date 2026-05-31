@@ -7,6 +7,7 @@ import { getTemplate, getVariant, TEMPLATES } from '../templates/registry.js';
 import { CARD_W, CARD_H } from '../design/tokens.js';
 import { uploadImage } from '../lib/uploadImage.js';
 import { STICKER_PLACEHOLDERS } from '../design/stickers.jsx';
+import { BLANK_VARIANT_IDS } from '../templates/blankFields.js';
 
 // HTML → plain text (br → \n, 나머지 태그 제거)
 function stripHtml(html) {
@@ -117,6 +118,10 @@ export function Sidebar({ project, page, pageIndex }) {
               }
               return out;
             })()}
+            {/* 빈 페이지(2/3분할) 전용 — 배경 분할 탭 + 배경 조정 섹션 */}
+            {BLANK_VARIANT_IDS.has(page.variantId) && (
+              <BlankBgEditor page={page} pageIndex={pageIndex} updatePageProp={updatePageProp} />
+            )}
           </>
         )}
 
@@ -670,6 +675,28 @@ function FieldEditor({ field, value, onChange, onCommit, onApplyAll, positionVal
   if (field.type === 'summary-rows') {
     return <SummaryRowsField field={field} value={value} onCommit={onCommit} />;
   }
+  // segment — n-option pill 그룹. value가 ''이면 field.default 사용.
+  if (field.type === 'segment') {
+    const opts = field.options || [];
+    const current = typeof value === 'string' && value !== '' ? value : (field.default ?? opts[0]?.value ?? '');
+    return (
+      <div>
+        <Label field={field} onApplyAll={onApplyAll} />
+        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${opts.length}, 1fr)` }}>
+          {opts.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onCommit(o.value)}
+              className={'pill-tab ' + (current === o.value ? 'is-active' : '')}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
   // toggle — boolean 켜짐/꺼짐. 구 페이지에서 value가 ''로 들어오면 field.default 사용.
   if (field.type === 'toggle') {
     const current = typeof value === 'boolean' ? value : (field.default ?? false);
@@ -967,12 +994,9 @@ function LayoutPicker({ project, pageIndex }) {
               className="group text-left border border-meta-hairline-soft rounded-xl overflow-hidden hover:border-meta-primary hover:shadow-meta-card transition-all bg-meta-canvas cursor-pointer"
               title={`클릭해서 "${v.label}" 추가`}
             >
-              <div className="relative overflow-hidden bg-meta-surface" style={{ paddingBottom: `${(CARD_H / CARD_W) * 100}%` }}>
-                <div style={{ position: 'absolute', inset: 0 }}>
-                  <div style={{ width: CARD_W, height: CARD_H, transform: `scale(${156 / CARD_W})`, transformOrigin: 'top left' }}>
-                    <MiniVariant variant={v} />
-                  </div>
-                </div>
+              <div className="relative overflow-hidden bg-meta-surface" style={{ aspectRatio: `${CARD_W} / ${CARD_H}` }}>
+                {/* 컬럼 너비에 맞춰 ResizeObserver로 실측 스케일 — 좌상단 기준 fit */}
+                <MiniVariantThumb variant={v} />
                 {/* 호버 시 + 추가 오버레이 — 클릭 가능함을 시각적으로 강조 */}
                 <div
                   className="absolute inset-0 bg-meta-ink-deep/0 group-hover:bg-meta-ink-deep/45 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
@@ -1008,13 +1032,49 @@ function MiniVariant({ variant }) {
   );
 }
 
+// 페이지 추가 picker 썸네일 — 부모 너비를 ResizeObserver로 실측해 1080x1350 카드를 정확히 fit.
+// 기존 transform: scale(156/CARD_W) 고정값이라 컬럼 폭과 안 맞아 우상단 치우침/좌하단 여백 발생했던 이슈 해결.
+function MiniVariantThumb({ variant }) {
+  const wrapRef = useRef(null);
+  const [scale, setScale] = useState(0);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0].contentRect.width;
+      if (w > 0) setScale(w / CARD_W);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={wrapRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          width: CARD_W,
+          height: CARD_H,
+          transform: `scale(${scale || 0.0001})`,
+          transformOrigin: 'top left',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+        }}
+      >
+        <MiniVariant variant={variant} />
+      </div>
+    </div>
+  );
+}
+
 function PointsListField({ field, value, onCommit, onApplyAll }) {
+  const MAX_POINTS = 5;
   const arr = Array.isArray(value) ? value : [];
   function setItem(i, next) {
     const copy = arr.map((v, idx) => (idx === i ? { ...v, ...next } : v));
     onCommit(copy);
   }
   function addRow() {
+    if (arr.length >= MAX_POINTS) return;
     const copy = [...arr, { headline: `포인트 ${arr.length + 1}` }];
     onCommit(copy);
   }
@@ -1050,9 +1110,15 @@ function PointsListField({ field, value, onCommit, onApplyAll }) {
             <button onClick={() => removeRow(i)} className="border border-meta-hairline-soft rounded-md px-2 text-meta-critical hover:bg-meta-surface" title="삭제">×</button>
           </div>
         ))}
-        <button onClick={addRow} className="btn btn-ghost w-full justify-center">+ 행 추가</button>
+        <button
+          onClick={addRow}
+          disabled={arr.length >= MAX_POINTS}
+          className="btn btn-ghost w-full justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          + 행 추가 {arr.length >= MAX_POINTS ? '(최대 5개)' : ''}
+        </button>
         <div className="t-cap text-meta-stone">
-          💡 행 추가 시 단일 셀링포인트 페이지가 자동 생성/동기됩니다.
+          💡 행 추가 시 단일 셀링포인트 페이지가 자동 생성/동기됩니다. (최대 5개)
         </div>
       </div>
     </div>
@@ -1260,6 +1326,82 @@ function StickerColorPalette({ block, setProp }) {
           +
         </button>
       </div>
+    </div>
+  );
+}
+
+// 빈 페이지 전용 — 배경 분할 탭(분할없음/2분할/3분할) + 모든 슬롯 채워지면 배경 조정 섹션.
+// bg1/bg2/bg3 개별 사이드바 필드는 제거됨 (캔버스에서 카메라 버튼으로 업로드).
+function BlankBgEditor({ page, pageIndex, updatePageProp }) {
+  const bgType = page.props.bgType || 'none';
+  const scrimMode = page.props.scrim || 'none';
+  const TYPES = [
+    { v: 'none', label: '분할없음' },
+    { v: 'split2', label: '2분할' },
+    { v: 'split3', label: '3분할' },
+  ];
+  const SCRIMS = [
+    { v: 'fullscreen', label: '전체화면' },
+    { v: 'gradient', label: '그라데이션' },
+    { v: 'none', label: '효과없음' },
+  ];
+  const n = bgType === 'split2' ? 2 : bgType === 'split3' ? 3 : 0;
+  const filled = [1, 2, 3].slice(0, n).every((i) => !!page.props[`bg${i}`]);
+  return (
+    <div className="space-y-3 pt-4 mt-2 border-t border-meta-hairline-soft">
+      <div>
+        <div className="t-cap-b text-meta-ink-deep mb-1.5">배경 분할</div>
+        <div className="grid grid-cols-3 gap-1">
+          {TYPES.map((t) => (
+            <button
+              key={t.v}
+              type="button"
+              onClick={() => updatePageProp(pageIndex, 'bgType', t.v, { commit: true })}
+              className={'pill-tab ' + (bgType === t.v ? 'is-active' : '')}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="t-cap-b text-meta-ink-deep mb-1.5">배경 효과</div>
+        <div className="grid grid-cols-3 gap-1">
+          {SCRIMS.map((s) => (
+            <button
+              key={s.v}
+              type="button"
+              onClick={() => updatePageProp(pageIndex, 'scrim', s.v, { commit: true })}
+              className={'pill-tab ' + (scrimMode === s.v ? 'is-active' : '')}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {n > 0 && filled && (
+        <div className="pt-3 border-t border-meta-hairline-soft space-y-3">
+          <div className="t-cap-b text-meta-steel">배경 조정</div>
+          {Array.from({ length: n }).map((_, i) => {
+            const key = `bg${i + 1}`;
+            const posKey = `bg${i + 1}Position`;
+            const scaleKey = `bg${i + 1}Scale`;
+            return (
+              <FieldEditor
+                key={key}
+                field={{ key, label: `배경 ${i + 1}`, type: 'image' }}
+                value={page.props[key] ?? ''}
+                onChange={(v) => updatePageProp(pageIndex, key, v)}
+                onCommit={(v) => updatePageProp(pageIndex, key, v, { commit: true })}
+                positionValue={page.props[posKey]}
+                scaleValue={page.props[scaleKey]}
+                onPositionCommit={(v, opts) => updatePageProp(pageIndex, posKey, v, opts || {})}
+                onScaleCommit={(v, opts) => updatePageProp(pageIndex, scaleKey, v, opts || {})}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

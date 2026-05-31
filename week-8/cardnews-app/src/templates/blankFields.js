@@ -1,38 +1,23 @@
-// 빈 페이지(내지) 공통 배경 필드.
-// 5종 템플릿이 모두 import.
+// 빈 페이지(내지) 공통 — sidebar 필드는 BlankBgEditor가 직접 관리.
+// variant.fields에 bgType 등을 더 이상 노출하지 않음 (Sidebar에 전용 분할 탭 + 배경 조정 섹션).
+//
+// 저장 키: page.props.{ bgType, bgDir, bg1, bg2, bg3, bg{i}Position, bg{i}Scale }
+//   - bgType: 'none' | 'split2' | 'split3' (default 'none')
+//   - bgDir:  'v' | 'h' (default 'v' = 세로 분할 = 가로 나란히)
+//   - bg{1..3}: 각 슬롯 이미지 URL
+//   - bg{i}Position / bg{i}Scale: PhotoPositionEditor용
 
-export const BG_FIELDS = [
-  {
-    key: 'bgType',
-    label: '배경',
-    type: 'select',
-    options: [
-      { value: 'none', label: '비워두기 (흰색)' },
-      { value: 'fullimage', label: '풀이미지/영상 1장' },
-      { value: 'split2', label: '2분할' },
-      { value: 'split3', label: '3분할' },
-    ],
-    default: 'none',
-  },
-  {
-    key: 'bgDir',
-    label: '분할 방향 (2/3분할일 때)',
-    type: 'select',
-    options: [
-      { value: 'v', label: '세로 분할 (가로 나란히)' },
-      { value: 'h', label: '가로 분할 (세로 쌓임)' },
-    ],
-    default: 'v',
-  },
-  { key: 'bg1', label: '배경 1 (이미지/영상)', type: 'media', default: '' },
-  { key: 'bg2', label: '배경 2 (이미지/영상)', type: 'media', default: '' },
-  { key: 'bg3', label: '배경 3 (이미지/영상)', type: 'media', default: '' },
-];
+export const BG_FIELDS = [];
 
-// 머릿말/꼬릿말 필드 (템플릿마다 다르므로 helper만 제공)
-export const BLANK_FIELDS = BG_FIELDS;
+export const BLANK_VARIANT_IDS = new Set([
+  'essay-blank', 'bs-blank', 'bi-blank', 'iv-blank', 'cl-blank',
+]);
 
-// Component에서 props.bg1/bg2/bg3을 items 배열로 변환
-export function bgItems({ bg1, bg2, bg3 }) {
-  return [{ src: bg1 }, { src: bg2 }, { src: bg3 }];
+// Component에서 props 전체를 받아 슬롯 배열로 변환 — 각 슬롯에 src/position/scale 포함
+export function bgItems(props) {
+  return [
+    { src: props.bg1, position: props.bg1Position, scale: props.bg1Scale },
+    { src: props.bg2, position: props.bg2Position, scale: props.bg2Scale },
+    { src: props.bg3, position: props.bg3Position, scale: props.bg3Scale },
+  ];
 }

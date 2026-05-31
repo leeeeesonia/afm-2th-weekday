@@ -75,6 +75,46 @@ const AUTO_SYNC_KEYS = new Set([
   'overviewLabel',   // [OVERVIEW] 라벨
 ]);
 
+// 의미적으로 같은 슬롯을 차지하는 키 그룹 — 다른 template 페이지를 import할 때 매핑 상속용.
+// 예: Type 1은 우상단을 'wordmark'로, Type 2는 'brand'로 부르지만 시각적 위치는 같음.
+const SEMANTIC_GROUPS = [
+  // 우상단 텍스트
+  new Set(['wordmark', 'brand', 'topRight', 'sub']),
+  // 우상단 로고 PNG
+  new Set(['wordmarkLogo', 'brandLogo', 'topRightLogo']),
+  // 좌상단 eyebrow
+  new Set(['eyebrow']),
+  // 하단 좌측 캡션
+  new Set(['caption']),
+  // 그 외 sync 키
+  new Set(['pointLabel']),
+  new Set(['overviewLabel']),
+];
+
+// 신규 페이지의 props를 기존 프로젝트 컨텍스트에 맞게 채움.
+// SEMANTIC_GROUPS의 같은 group에서 기존 페이지의 비어있지 않은 값이 있으면 그 값으로 override.
+// → cross-template import 시 머릿말/꼬릿말/우상단 텍스트가 기존 프로젝트 톤을 따르게 함.
+function inheritProjectContext(newPage, existingPages) {
+  if (!newPage?.props) return;
+  for (const newKey of Object.keys(newPage.props)) {
+    const group = SEMANTIC_GROUPS.find((g) => g.has(newKey));
+    if (!group) continue;
+    let found;
+    for (const existing of existingPages) {
+      if (!existing.props) continue;
+      for (const gk of group) {
+        const v = existing.props[gk];
+        if (v !== undefined && v !== null && v !== '') {
+          found = v;
+          break;
+        }
+      }
+      if (found !== undefined) break;
+    }
+    if (found !== undefined) newPage.props[newKey] = found;
+  }
+}
+
 function newProject({ templateId, name, status = 'draft' }) {
   const tpl = getTemplate(templateId);
   return {
@@ -101,6 +141,7 @@ export const useProjectStore = create(
       historyFuture: [],
       previewMode: false,      // export 가이드선 숨김
       guideMode: false,        // 안전 영역(84px bleed) 네온 가이드 on/off
+      customTemplates: [],     // 사용자가 작업 완료 카드뉴스를 템플릿으로 저장한 목록
       selectedBlockIds: [],    // 캔버스 위 선택된 블록 IDs
       layoutPickerOpen: false, // 사이드바를 레이아웃 picker로 전환
 
@@ -248,6 +289,34 @@ export const useProjectStore = create(
       setPreviewMode: (on) => set({ previewMode: !!on }),
       setGuideMode: (on) => set({ guideMode: !!on }),
 
+      // 사용자 프로젝트를 템플릿으로 저장 — 페이지 스냅샷 보관, 이후 '템플릿' 탭에서 재사용.
+      // name이 명시되지 않으면 원본 프로젝트 이름 사용.
+      saveProjectAsTemplate: (projectId, name) => {
+        const src = get().projects.find((p) => p.id === projectId);
+        if (!src) return;
+        const tpl = {
+          id: newId('ctpl'),
+          name: (typeof name === 'string' && name.trim()) ? name.trim() : src.name,
+          baseTemplateId: src.templateId,
+          // 페이지 깊은 복사 (id는 createProjectFromPreset에서 새로 부여됨)
+          pagesSnapshot: JSON.parse(JSON.stringify(src.pages)),
+          createdAt: Date.now(),
+        };
+        set(produce((s) => {
+          if (!Array.isArray(s.customTemplates)) s.customTemplates = [];
+          s.customTemplates.unshift(tpl);
+          s.lastSavedAt = Date.now();
+        }));
+        return tpl.id;
+      },
+      deleteCustomTemplate: (id) => {
+        set(produce((s) => {
+          if (!Array.isArray(s.customTemplates)) return;
+          s.customTemplates = s.customTemplates.filter((t) => t.id !== id);
+          s.lastSavedAt = Date.now();
+        }));
+      },
+
       // ─── Page CRUD ───
       addPage: (variantId, atIndex, templateId) => {
         const proj = get().projects.find((p) => p.id === get().activeProjectId);
@@ -257,6 +326,11 @@ export const useProjectStore = create(
         const page = makePage(tplId, variantId);
         // 다른 템플릿의 variant를 가져온 경우 페이지에 templateId 저장 (렌더 시 override)
         if (tplId !== proj.templateId) page.templateId = tplId;
+        // 기존 프로젝트 컨텍스트 상속 — 다른 template variant 임포트 시 eyebrow/wordmark/caption 등이
+        // 의미적으로 같은 슬롯(SEMANTIC_GROUPS)에서 기존 값으로 채워짐.
+        // 예: Type 1 프로젝트에 Type 2 variant 추가 → Type 2의 'brand' 슬롯이 Type 1의 'wordmark' 값으로 채워짐.
+        // → 이후 사용자가 그 페이지에서 텍스트 편집해도 AUTO_SYNC가 잘못된 값으로 전체 페이지를 덮어쓰지 않음.
+        inheritProjectContext(page, proj.pages);
         set(produce((s) => {
           const p = s.projects.find((x) => x.id === s.activeProjectId);
           const idx = typeof atIndex === 'number' ? atIndex : p.pages.length;
@@ -539,6 +613,7 @@ export const useProjectStore = create(
         activeProjectId: s.activeProjectId,
         activePageIndex: s.activePageIndex,
         viewMode: s.viewMode,
+        customTemplates: s.customTemplates,
       }),
     },
   ),

@@ -304,21 +304,25 @@ export const CL_VARIANTS = [
     fields: [
       ...BODY_COMMON,
       { key: 'bg', label: '풀배경 사진', type: 'image', default: '' },
-      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
     ],
     defaultOverlays: () => [
       { type: 'image', x: 180, y: 380, w: 720, h: 720, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, caption, page, bg, gradient = true }) => (
+    Component: ({ eyebrow, topRight, topRightLogo, caption, page, bg, scrim, gradient }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      return (
       <Card>
         <FullBleedPhoto src={bg} />
-        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
         <CLEyebrow eyebrow={eyebrow} />
         <CLBodyTopRight topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
         <CardFooter left={caption} right={page} leftField="caption" />
       </Card>
-    ),
+      );
+    },
   },
 
   /* ── Body connected (사진 자유 드래그, 꺽쇠 라인은 고정) ── */
@@ -388,13 +392,16 @@ export const CL_VARIANTS = [
 `오랫동안 곁에 둘 물건들로 채운 책상 한 칸.
 좋아하는 무드와 일하는 모드가 함께 머물고,
 매일 손이 닿는 도구만 자리를 지킵니다.` },
-      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
       { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, caption, page, photo, body, gradient = true, textShadow = false }) => (
+    Component: ({ eyebrow, topRight, topRightLogo, caption, page, photo, body, scrim, gradient, textShadow = false }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      return (
       <Card>
         <FullBleedPhoto src={photo} />
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <CLEyebrow eyebrow={eyebrow} color="#fff" />
         <CLBodyTopRight color="#fff" topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
         <div
@@ -420,25 +427,30 @@ export const CL_VARIANTS = [
         </div>
         <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
       </Card>
-    ),
+      );
+    },
   },
 
   /* ── 빈 페이지 (내지) ── */
   {
     id: 'cl-blank',
-    label: '빈 페이지 · 머릿말/꼬릿말 유지',
+    label: '빈 페이지 · 2/3분할',
     category: 'body',
     fields: [
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: '수집생활' },
       { key: 'topRight', label: '우상단 영문', type: 'text', default: 'WORKROOM' },
       { key: 'caption', label: '하단 캡션', type: 'text', default: '@oyatlog' },
-      ...BG_FIELDS,
     ],
-    Component: ({ eyebrow = '수집생활', topRight, topRightLogo, caption, page, bgType, bgDir, bg1, bg2, bg3 }) => {
-      const onPhoto = bgType && bgType !== 'none';
+    Component: (props) => {
+      const { eyebrow = '수집생활', topRight, topRightLogo, caption, page } = props;
+      const bgType = props.bgType || 'none';
+      const sm = props.scrim || 'none';
+      const onPhoto = bgType !== 'none';
       return (
         <Card>
-          <BackgroundFill type={bgType} dir={bgDir} items={bgItems({ bg1, bg2, bg3 })} />
+          <BackgroundFill type={bgType} dir={props.bgDir || 'h'} items={bgItems(props)} />
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
           <CLEyebrow eyebrow={eyebrow} color={onPhoto ? '#fff' : '#000'} />
           <CLBodyTopRight color={onPhoto ? '#fff' : '#000'} topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
           <CardFooter left={caption} right={page} color={onPhoto ? '#fff' : '#000'} leftField="caption" />

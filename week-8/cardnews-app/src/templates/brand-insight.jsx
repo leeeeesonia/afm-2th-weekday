@@ -273,21 +273,25 @@ export const BI_VARIANTS = [
     fields: [
       ...COMMON,
       { key: 'bg', label: '풀배경 사진', type: 'image', default: '' },
-      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
     ],
     defaultOverlays: () => [
       { type: 'image', x: 180, y: 380, w: 720, h: 720, props: { src: '', border: 3, borderColor: '#000000', borderRadius: 0 } },
     ],
-    Component: ({ eyebrow, wordmark, caption, page, bg, gradient = true }) => (
+    Component: ({ eyebrow, wordmark, caption, page, bg, scrim, gradient }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      return (
       <Card>
         <FullBleedPhoto src={bg} />
-        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0))" />}
         <BIEyebrow eyebrow={eyebrow} />
         <BIWordmark>{wordmark}</BIWordmark>
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0))" />}
         <CardFooter left={caption} right={page} leftField="caption" />
       </Card>
-    ),
+      );
+    },
   },
 
   /* ── Body · full image + 글 위 (이전 '꺽쇠 연결' 변형 — 꺽쇠/사진블록 제거, 풀이미지 모드로 전환) ── */
@@ -303,14 +307,15 @@ export const BI_VARIANTS = [
 `장인의 손맛이 브랜드의 정체성이 될 때,
 오래 입을수록 진가가 드러나는 옷을 만드는 구도에
 포터 클래식의 철학이 담겨 있습니다.` },
-      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
       { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, gradient = true, textShadow = false }) => (
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, scrim, gradient, textShadow = false }) => { const sm = scrim || (gradient === false ? 'none' : 'gradient'); return (
       <Card>
         <FullBleedPhoto src={photo} />
         {/* 위쪽이 어둡고 아래로 페이드 — '글 위' 카피 가독성 확보 (글 아래 변형의 거울상) */}
-        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <BIEyebrow color="#fff" />
         <BIWordmark color="rgba(255,255,255,0.65)" wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
         <div
@@ -337,7 +342,7 @@ export const BI_VARIANTS = [
         </div>
         <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
       </Card>
-    ),
+      ); },
   },
 
   /* ── Body · CTA quote ── */
@@ -416,13 +421,14 @@ export const BI_VARIANTS = [
 `장인의 손맛이 브랜드의 정체성이 될 때,
 오래 입을수록 진가가 드러나는 옷을 만드는 구도에
 포터 클래식의 철학이 담겨 있습니다.` },
-      { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
       { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, gradient = true, textShadow = false }) => (
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, scrim, gradient, textShadow = false }) => { const sm = scrim || (gradient === false ? 'none' : 'gradient'); return (
       <Card>
         <FullBleedPhoto src={photo} />
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <BIEyebrow color="#fff" />
         <BIWordmark color="rgba(255,255,255,0.65)" wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
         <div
@@ -449,7 +455,7 @@ export const BI_VARIANTS = [
         </div>
         <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
       </Card>
-    ),
+      ); },
   },
 
   /* ── Body · summary — 행 단위 표(2~5행) + 인플레이스 편집 ── */
@@ -580,19 +586,23 @@ export const BI_VARIANTS = [
   /* ── 빈 페이지 (내지) ── */
   {
     id: 'bi-blank',
-    label: '빈 페이지 · 머릿말/꼬릿말 유지',
+    label: '빈 페이지 · 2/3분할',
     category: 'body',
     fields: [
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Insight Note' },
       { key: 'wordmark', label: '브랜드 (우상단)', type: 'text', default: 'PORTER CLASSIC' },
       { key: 'caption', label: '하단 캡션', type: 'text', default: '@oyatlog' },
-      ...BG_FIELDS,
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, bgType, bgDir, bg1, bg2, bg3 }) => {
-      const onPhoto = bgType && bgType !== 'none';
+    Component: (props) => {
+      const { eyebrow, wordmark, wordmarkLogo, caption, page } = props;
+      const bgType = props.bgType || 'none';
+      const sm = props.scrim || 'none';
+      const onPhoto = bgType !== 'none';
       return (
         <Card>
-          <BackgroundFill type={bgType} dir={bgDir} items={bgItems({ bg1, bg2, bg3 })} />
+          <BackgroundFill type={bgType} dir={props.bgDir || 'h'} items={bgItems(props)} />
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
           <BIEyebrow eyebrow={eyebrow} color={onPhoto ? '#fff' : '#000'} />
           <BIWordmark color={onPhoto ? 'rgba(255,255,255,0.7)' : undefined} wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
           <CardFooter left={caption} right={page} color={onPhoto ? '#fff' : '#000'} leftField="caption" />

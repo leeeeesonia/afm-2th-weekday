@@ -60,7 +60,9 @@ function EssayHeader({ eyebrow = 'Essay', color = '#000', wordmark = '@oyatlog',
 }
 
 /* ─────────── 표지 (4 variants) ─────────── */
-function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#fff', wordmark, wordmarkLogo, eyebrow, gradient = true, textShadow = false }) {
+function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#fff', wordmark, wordmarkLogo, eyebrow, scrim, gradient, textShadow = false }) {
+  // backward compat: gradient(boolean) → scrim(enum)
+  const sm = scrim || (gradient === false ? 'none' : 'gradient');
   const padX = 84;
   const blockW = 912;
   const horizontal = {
@@ -73,7 +75,7 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
     middle: { top: 0, height: CARD_H, display: 'flex', flexDirection: 'column', justifyContent: 'center' },
     bottom: { bottom: 200 },
   }[vAlign];
-  const scrim =
+  const scrimCss =
     vAlign === 'bottom'
       ? 'linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.55) 100%)'
       : vAlign === 'top'
@@ -82,7 +84,8 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
   return (
     <Card>
       <FullBleedPhoto src={photo} />
-      {gradient && <Scrim gradient={scrim} />}
+      {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+      {sm === 'gradient' && <Scrim gradient={scrimCss} />}
       <EssayHeader color={textColor} wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
       <div
         style={{
@@ -139,7 +142,7 @@ const COVER_FIELDS = [
   { key: 'subtitle', label: '서브 타이틀 (줄바꿈 가능)', type: 'textarea', default: '이건 그냥 대충 이 정도 느낌' },
   { key: 'photo', label: '배경 사진', type: 'image', default: '' },
   { key: 'wordmark', label: '워드마크', type: 'text', default: '@oyatlog' },
-  { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+  { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
   { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
 ];
 
@@ -177,7 +180,7 @@ const BODY3_FIELDS = [
 이렇게 저렇게 고칠 수 있습니다.` },
   { key: 'caption', label: '하단 캡션', type: 'text', default: '피그마 AI 정복기 가능?' },
   { key: 'wordmark', label: '워드마크', type: 'text', default: '@oyatlog' },
-  { key: 'gradient', label: '그라디언트', type: 'toggle', default: true },
+  { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
   { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
 ];
 
@@ -272,10 +275,13 @@ export const ESSAY_VARIANTS = [
     label: '본문 3 · 풀이미지 + 글 위',
     category: 'body',
     fields: BODY3_FIELDS,
-    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, gradient = true, textShadow = false }) => (
+    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, scrim, gradient, textShadow = false }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      return (
       <Card>
         <FullBleedPhoto src={photo} />
-        {gradient && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <EssayHeader color="#fff" wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
         <div
           data-cn-field="body"
@@ -300,17 +306,21 @@ export const ESSAY_VARIANTS = [
         </div>
         <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
       </Card>
-    ),
+      );
+    },
   },
   {
     id: 'essay-body-fullimg-bottom',
     label: '본문 3 · 풀이미지 + 글 아래',
     category: 'body',
     fields: BODY3_FIELDS,
-    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, gradient = true, textShadow = false }) => (
+    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, scrim, gradient, textShadow = false }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      return (
       <Card>
         <FullBleedPhoto src={photo} />
-        {gradient && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
+        {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+        {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
         <EssayHeader color="#fff" wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
         <div
           data-cn-field="body"
@@ -335,7 +345,8 @@ export const ESSAY_VARIANTS = [
         </div>
         <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
       </Card>
-    ),
+      );
+    },
   },
 
   /* ── 아웃트로 ── */
@@ -417,19 +428,23 @@ export const ESSAY_VARIANTS = [
   /* ── 빈 페이지 (내지) ── */
   {
     id: 'essay-blank',
-    label: '빈 페이지 · 머릿말/꼬릿말 유지',
+    label: '빈 페이지 · 2/3분할',
     category: 'body',
     fields: [
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Essay' },
       { key: 'wordmark', label: '워드마크 (우상단)', type: 'text', default: '@oyatlog' },
       { key: 'caption', label: '하단 캡션', type: 'text', default: '피그마 AI 정복기 가능?' },
-      ...BG_FIELDS,
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, bgType, bgDir, bg1, bg2, bg3 }) => {
-      const onPhoto = bgType && bgType !== 'none';
+    Component: (props) => {
+      const { eyebrow, wordmark, wordmarkLogo, caption, page } = props;
+      const bgType = props.bgType || 'none';
+      const sm = props.scrim || 'none';
+      const onPhoto = bgType !== 'none';
       return (
         <Card>
-          <BackgroundFill type={bgType} dir={bgDir} items={bgItems({ bg1, bg2, bg3 })} />
+          <BackgroundFill type={bgType} dir={props.bgDir || 'h'} items={bgItems(props)} />
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
           <EssayHeader color={onPhoto ? '#fff' : '#000'} wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
           <CardFooter left={caption} right={page} color={onPhoto ? '#fff' : '#000'} leftField="caption" />
         </Card>

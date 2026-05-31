@@ -1,8 +1,14 @@
 // 프리미티브 — Card, Eyebrow, CoverTitle, Heading01, BodyText, CardFooter.
 // children이 string이면 dangerouslySetInnerHTML로 렌더 → <b>/<mark> 등 서식 보존.
 // children이 React element면 그대로.
-import React from 'react';
+import React, { useRef, useState, useContext } from 'react';
 import { CARD_W, CARD_H, CN_FONT, CN_FONT_ARCHIVO, CN_COLORS, CN_THEMES } from './tokens.js';
+import { uploadImage } from '../lib/uploadImage.js';
+
+/* ─────────── BlankBgUploadContext — 빈 페이지 분할 슬롯 업로드 콜백 ─────────── */
+// Canvas가 set, BackgroundFill 내부 BlankBgCell이 consume.
+// onUpload(slotIndex, url) → updatePageProp('bg{slotIndex+1}', url)
+export const BlankBgUploadContext = React.createContext(null);
 
 const fieldAttr = (field) => (field ? { 'data-cn-field': field } : {});
 const ml = (field, isMulti) => (field && isMulti ? { 'data-cn-multiline': '1' } : {});
@@ -417,41 +423,20 @@ export function Scrim({ gradient }) {
 /* ─────────── BackgroundFill — 빈 페이지 배경 (이미지/영상, 풀/2분할/3분할) ─────────── */
 // type: 'none' | 'fullimage' | 'split2' | 'split3'
 // dir:  'h' | 'v'  (split2/split3 분할 방향)
-// items: [{ src }] — 이미지 또는 mp4 data URL
+// items: [{ src, position, scale }] — 이미지 또는 mp4 data URL + 슬롯별 위치/확대
 export function BackgroundFill({ type = 'none', dir = 'v', items = [] }) {
   if (type === 'none') return null;
 
-  function Cell({ src, style }) {
-    if (!src) {
-      return <div style={{ ...style, background: '#f1f4f7', border: '1px dashed #ced0d4', boxSizing: 'border-box' }} />;
-    }
-    const isVideo = /^data:video\//.test(src) || /\.(mp4|webm|mov)(\?|$)/i.test(src);
-    if (isVideo) {
-      return (
-        <video
-          src={src}
-          autoPlay
-          loop
-          muted
-          playsInline
-          style={{ ...style, objectFit: 'cover' }}
-        />
-      );
-    }
+  if (type === 'fullimage') {
     return (
-      <div
-        style={{
-          ...style,
-          backgroundImage: `url(${src})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+      <BlankBgCell
+        slotIndex={0}
+        src={items[0]?.src}
+        position={items[0]?.position}
+        scale={items[0]?.scale}
+        cellStyle={{ position: 'absolute', inset: 0 }}
       />
     );
-  }
-
-  if (type === 'fullimage') {
-    return <Cell src={items[0]?.src} style={{ position: 'absolute', inset: 0 }} />;
   }
 
   const n = type === 'split2' ? 2 : 3;
@@ -471,10 +456,156 @@ export function BackgroundFill({ type = 'none', dir = 'v', items = [] }) {
       style.top = `${(100 / n) * i}%`;
       style.height = `${100 / n}%`;
     }
-    cells.push(<Cell key={i} src={items[i]?.src} style={style} />);
+    cells.push(
+      <BlankBgCell
+        key={i}
+        slotIndex={i}
+        src={items[i]?.src}
+        position={items[i]?.position}
+        scale={items[i]?.scale}
+        cellStyle={style}
+      />
+    );
   }
   return <>{cells}</>;
 }
+
+// 분할 슬롯 1칸 — src 있으면 이미지/영상 표시, 없으면 카메라 버튼(=단일블록 이미지 추가 UX).
+function BlankBgCell({ slotIndex, src, position, scale, cellStyle }) {
+  const onUpload = useContext(BlankBgUploadContext);
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [hover, setHover] = useState(false);
+
+  async function onFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !onUpload) return;
+    setUploading(true);
+    try {
+      const url = await uploadImage(file, { folder: 'cardnews/blank-bg' });
+      onUpload(slotIndex, url);
+    } catch (err) {
+      console.error('[blank-bg upload]', err);
+      alert(`업로드 실패: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  if (src) {
+    const isVideo = /^data:video\//.test(src) || /\.(mp4|webm|mov)(\?|$)/i.test(src);
+    const objectPos = position || 'center';
+    const objectScale = typeof scale === 'number' && scale >= 1 ? scale : 1;
+    return (
+      <div
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{ ...cellStyle, overflow: 'hidden' }}
+      >
+        {isVideo ? (
+          <video
+            src={src}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `url(${src})`,
+              backgroundSize: 'cover',
+              backgroundPosition: objectPos,
+              transform: `scale(${objectScale})`,
+              transformOrigin: typeof objectPos === 'string' && objectPos !== 'center' ? objectPos : 'center center',
+            }}
+          />
+        )}
+        {/* 호버 시 변경 버튼 */}
+        {hover && onUpload && (
+          <>
+            <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
+            <button
+              data-cn-control="blank-bg-camera"
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+              onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+              onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+              style={cameraBtnStyle('rgba(10,19,23,0.78)')}
+            >
+              {cameraIcon}
+              {uploading ? '업로드 중…' : '변경'}
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // 빈 슬롯 — 카메라 버튼 + 점선 박스
+  return (
+    <div
+      style={{
+        ...cellStyle,
+        background: '#f1f4f7',
+        border: '3px dashed #ced0d4',
+        boxSizing: 'border-box',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {onUpload && (
+        <>
+          <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
+          <button
+            data-cn-control="blank-bg-camera"
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+            style={cameraBtnStyle('rgba(10,19,23,0.92)')}
+          >
+            {cameraIcon}
+            {uploading ? '업로드 중…' : '이미지 추가'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function cameraBtnStyle(bg) {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '14px 24px',
+    borderRadius: 100,
+    background: bg,
+    color: '#fff',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 18,
+    fontWeight: 700,
+    letterSpacing: '-0.14px',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)',
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    transform: 'translate(-50%, -50%)',
+    zIndex: 2,
+  };
+}
+const cameraIcon = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
 
 /* ─────────── re-export tokens ─────────── */
 export { CARD_W, CARD_H, CN_FONT, CN_FONT_ARCHIVO, CN_COLORS, CN_THEMES };
