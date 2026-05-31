@@ -110,11 +110,16 @@ export const BI_VARIANTS = [
       { key: 'eyebrowSub', label: '한글 부제 (우상단)', type: 'text', default: '사적인 디깅노트' },
       { key: 'title', label: '메인 타이틀', type: 'text', default: '포터 클래식의 미학' },
       { key: 'wordEng', label: '하단 영문', type: 'text', default: 'PORTER CLASSIC STORY' },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'none', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
     ],
-    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, themeMode }) => {
+    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, themeMode, scrim }) => {
       const fg = themeMode === 'dark' ? '#fff' : '#000';
+      const sm = scrim || 'none';
       return (
         <Card>
+          {/* 텍스트가 하단(bottom 200)에 위치 → 그라데이션은 아래쪽이 어둡고 위로 페이드 (0deg) */}
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 55%)" />}
           <BIEyebrow eyebrow={eyebrow} />
           <BIEyebrowSub>{eyebrowSub}</BIEyebrowSub>
           {/* T1 좌하단 패턴 — bottom anchored 블록. color는 wrapper에 한 번만 → 자식 상속. */}
@@ -160,11 +165,15 @@ export const BI_VARIANTS = [
       { key: 'title', label: '메인 타이틀 (2줄)', type: 'textarea', default: '오래 사랑받는 옷,\n포터 클래식의 미학' },
       { key: 'eyebrow', label: 'Eyebrow (좌상단)', type: 'text', default: 'Insight Note' },
       { key: 'wordEng', label: '하단 영문', type: 'text', default: 'PORTER CLASSIC STORY' },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'none', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
     ],
-    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, themeMode }) => {
+    Component: ({ eyebrow = 'Insight Note', eyebrowSub, title, wordEng, themeMode, scrim }) => {
       const fg = themeMode === 'dark' ? '#fff' : '#000';
+      const sm = scrim || 'none';
       return (
         <Card>
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 55%)" />}
           <BIEyebrow eyebrow={eyebrow} />
           <BIEyebrowSub>{eyebrowSub}</BIEyebrowSub>
           <div style={{ position: 'absolute', left: 84, width: 812, bottom: 200, fontFamily: CN_FONT, color: fg }}>
