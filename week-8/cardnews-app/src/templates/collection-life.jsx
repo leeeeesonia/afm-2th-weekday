@@ -395,15 +395,19 @@ export const CL_VARIANTS = [
       { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
       { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, topRight, topRightLogo, caption, page, photo, body, scrim, gradient, textShadow = false }) => {
+    Component: ({ eyebrow, topRight, topRightLogo, caption, page, photo, body, scrim, gradient, textShadow = false, themeMode }) => {
       const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      const isDark = themeMode === 'dark';
+      const fg = isDark ? '#fff' : '#000';
+      const shadowMain = isDark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.85)';
+      const shadowGlow = isDark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.4)';
       return (
       <Card>
         <FullBleedPhoto src={photo} />
         {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
         {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
-        <CLEyebrow eyebrow={eyebrow} color="#fff" />
-        <CLBodyTopRight color="#fff" topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
+        <CLEyebrow eyebrow={eyebrow} color={fg} />
+        <CLBodyTopRight color={fg} topRightLogo={topRightLogo}>{topRight}</CLBodyTopRight>
         <div
           data-cn-field="body"
           data-cn-multiline="1"
@@ -417,15 +421,15 @@ export const CL_VARIANTS = [
             fontSize: 32,
             lineHeight: 1.65,
             letterSpacing: '-0.04em',
-            color: '#fff',
+            color: fg,
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
+            textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
         >
           {body}
         </div>
-        <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
+        <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       );
     },

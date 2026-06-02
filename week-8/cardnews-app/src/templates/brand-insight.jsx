@@ -229,8 +229,9 @@ export const BI_VARIANTS = [
 팝업 플랜을 세분화하기 위해 사전 질문지를 공유드립니다.
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로 니즈를 편하게
 답변해주세요!` },
+      { key: 'scrim', label: '배경 효과', type: 'segment', default: 'none', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, subhead, subheadHidden, highlight, highlightRest, body, themeMode }) => {
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, subhead, subheadHidden, highlight, highlightRest, body, themeMode, scrim }) => {
       // 기존 프로젝트 호환: highlight + highlightRest 분리 필드가 있던 시절 데이터 → subhead HTML로 합치기
       const subheadHtml = subhead || (
         highlight || highlightRest
@@ -243,8 +244,12 @@ export const BI_VARIANTS = [
       // - 큰 제목 → marginTop 0
       // - 소제목 → marginTop 60 (큰 제목 1줄/2줄 무관, 동일 간격 유지)
       // - 본문   → marginTop 50 (소제목 다음) 또는 60 (소제목 숨김 시 그 자리로 올라감)
+      const sm = scrim || 'none';
       return (
         <Card>
+          {/* 배경 효과 — bgPhoto가 있을 때 텍스트 가독성 강화용. 없으면 단순 배경 색상 톤 변화. */}
+          {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
+          {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 55%)" />}
           <BIEyebrow eyebrow={eyebrow} />
           <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
           <div style={{ position: 'absolute', left: 84, right: 84, top: 220 }}>
@@ -349,14 +354,20 @@ export const BI_VARIANTS = [
       { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
       { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, scrim, gradient, textShadow = false }) => { const sm = scrim || (gradient === false ? 'none' : 'gradient'); return (
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, scrim, gradient, textShadow = false, themeMode }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      const isDark = themeMode === 'dark';
+      const fg = isDark ? '#fff' : '#000';
+      const wordmarkColor = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.5)';
+      const shadowMain = isDark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.85)';
+      const shadowGlow = isDark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.4)';
+      return (
       <Card>
         <FullBleedPhoto src={photo} />
-        {/* 위쪽이 어둡고 아래로 페이드 — '글 위' 카피 가독성 확보 (글 아래 변형의 거울상) */}
         {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
         {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
-        <BIEyebrow color="#fff" />
-        <BIWordmark color="rgba(255,255,255,0.65)" wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
+        <BIEyebrow color={fg} />
+        <BIWordmark color={wordmarkColor} wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
         <div
           data-cn-field="body"
           data-cn-multiline="1"
@@ -370,16 +381,15 @@ export const BI_VARIANTS = [
             fontSize: 32,
             lineHeight: 1.65,
             letterSpacing: '-0.04em',
-            color: '#fff',
+            color: fg,
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            // 미세 드랍섀도우 — 밝은 사진 위에서도 텍스트 가독성 확보. 그라디언트 OFF일 때 가장 유용.
-            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
+            textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
         >
           {body}
         </div>
-        <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
+        <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       ); },
   },
@@ -463,13 +473,20 @@ export const BI_VARIANTS = [
       { key: 'scrim', label: '배경 효과', type: 'segment', default: 'gradient', options: [{ value: 'fullscreen', label: '전체화면' }, { value: 'gradient', label: '그라데이션' }, { value: 'none', label: '효과없음' }] },
       { key: 'textShadow', label: '글씨 그림자', type: 'toggle', default: false },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, scrim, gradient, textShadow = false }) => { const sm = scrim || (gradient === false ? 'none' : 'gradient'); return (
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, photo, body, scrim, gradient, textShadow = false, themeMode }) => {
+      const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      const isDark = themeMode === 'dark';
+      const fg = isDark ? '#fff' : '#000';
+      const wordmarkColor = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.5)';
+      const shadowMain = isDark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.85)';
+      const shadowGlow = isDark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.4)';
+      return (
       <Card>
         <FullBleedPhoto src={photo} />
         {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
         {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
-        <BIEyebrow color="#fff" />
-        <BIWordmark color="rgba(255,255,255,0.65)" wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
+        <BIEyebrow color={fg} />
+        <BIWordmark color={wordmarkColor} wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
         <div
           data-cn-field="body"
           data-cn-multiline="1"
@@ -483,16 +500,15 @@ export const BI_VARIANTS = [
             fontSize: 32,
             lineHeight: 1.65,
             letterSpacing: '-0.04em',
-            color: '#fff',
+            color: fg,
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            // 미세 드랍섀도우 — 그라디언트 OFF + 밝은 사진에서도 텍스트 가독성 확보
-            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
+            textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
         >
           {body}
         </div>
-        <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
+        <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       ); },
   },

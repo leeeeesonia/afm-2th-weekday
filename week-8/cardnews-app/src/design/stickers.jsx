@@ -292,6 +292,7 @@ export function SubSticker({ children, w = 90, h = 56, variant = 'black', size =
       lemon: { bg: CN_COLORS.lemon, color: CN_COLORS.black, border: `3px solid ${CN_COLORS.black}` },
       neon: { bg: CN_COLORS.neon, color: CN_COLORS.black, border: `3px solid ${CN_COLORS.black}` },
       white: { bg: CN_COLORS.black, color: CN_COLORS.white, border: `3px solid ${CN_COLORS.white}` },
+      sky: { bg: '#7599fb', color: CN_COLORS.black, border: `3px solid ${CN_COLORS.black}` },
     }[variant] ?? { bg: CN_COLORS.black, color: CN_COLORS.neon, border: 'none' };
 
   return (

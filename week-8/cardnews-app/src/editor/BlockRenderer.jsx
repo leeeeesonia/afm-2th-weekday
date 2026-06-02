@@ -722,6 +722,50 @@ export function BlockRenderer({ block, allBlocks = [], selectedBlockIds = [], sc
         if (ev.key === 'Escape') {
           hasInput = false;
           inner.blur();
+        } else if (ev.key === 'Enter' && isLineMode) {
+          // SubInfo 줄 편집 — Enter(shift 여부 무관)로 카렛 기준 split 후 새 lemon 박스 추가
+          ev.preventDefault();
+          const sel = window.getSelection();
+          let beforeText = inner.innerText;
+          let afterText = '';
+          if (sel && sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            try {
+              const pre = document.createRange();
+              pre.selectNodeContents(inner);
+              pre.setEnd(range.startContainer, range.startOffset);
+              beforeText = pre.toString();
+              const post = document.createRange();
+              post.setStart(range.startContainer, range.startOffset);
+              post.selectNodeContents(inner);
+              afterText = post.toString();
+              // post는 selectNodeContents가 inner 끝까지 잡아주므로 setEnd 불필요
+            } catch {
+              // range 조작 실패 시 통째로 처리
+              beforeText = inner.innerText;
+              afterText = '';
+            }
+          }
+          const { updateBlock: ub2, block: bb2 } = getLatest();
+          let arr2;
+          if (typeof bb2.props.children === 'string' && bb2.props.children.length > 0) {
+            arr2 = bb2.props.children.split('\n');
+          } else if (Array.isArray(bb2.props.lines)) {
+            arr2 = bb2.props.lines.slice();
+          } else {
+            arr2 = [];
+          }
+          while (arr2.length <= lineIdx) arr2.push('');
+          arr2[lineIdx] = beforeText;
+          arr2.splice(lineIdx + 1, 0, afterText);
+          ub2(bb2.id, { props: { children: arr2.join('\n'), lines: undefined } }, { commit: true });
+          // 편집 종료 (커서 위치 유지 어렵기 때문에 사용자가 새 박스 클릭해 이어쓰는 흐름)
+          inner.removeAttribute('contenteditable');
+          inner.removeEventListener('blur', commit);
+          inner.removeEventListener('keydown', onKey);
+          inner.removeEventListener('input', onInput);
+          inner.removeEventListener('paste', onPaste);
+          return;
         } else if (ev.key === 'Enter' && !ev.shiftKey && inner.style.whiteSpace === 'nowrap') {
           ev.preventDefault();
           inner.blur();

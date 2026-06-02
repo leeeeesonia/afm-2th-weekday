@@ -275,14 +275,18 @@ export const ESSAY_VARIANTS = [
     label: '본문 3 · 풀이미지 + 글 위',
     category: 'body',
     fields: BODY3_FIELDS,
-    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, scrim, gradient, textShadow = false }) => {
+    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, scrim, gradient, textShadow = false, themeMode }) => {
       const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      const isDark = themeMode === 'dark';
+      const fg = isDark ? '#fff' : '#000';
+      const shadowMain = isDark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.85)';
+      const shadowGlow = isDark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.4)';
       return (
       <Card>
         <FullBleedPhoto src={photo} />
         {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
         {sm === 'gradient' && <Scrim gradient="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
-        <EssayHeader color="#fff" wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
+        <EssayHeader color={fg} wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
         <div
           data-cn-field="body"
           data-cn-multiline="1"
@@ -296,15 +300,15 @@ export const ESSAY_VARIANTS = [
             fontSize: 32,
             lineHeight: 1.65,
             letterSpacing: '-0.04em',
-            color: '#fff',
+            color: fg,
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
+            textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
         >
           {body}
         </div>
-        <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
+        <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       );
     },
@@ -314,14 +318,18 @@ export const ESSAY_VARIANTS = [
     label: '본문 3 · 풀이미지 + 글 아래',
     category: 'body',
     fields: BODY3_FIELDS,
-    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, scrim, gradient, textShadow = false }) => {
+    Component: ({ eyebrow, photo, body, caption, page, wordmark, wordmarkLogo, scrim, gradient, textShadow = false, themeMode }) => {
       const sm = scrim || (gradient === false ? 'none' : 'gradient');
+      const isDark = themeMode === 'dark';
+      const fg = isDark ? '#fff' : '#000';
+      const shadowMain = isDark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.85)';
+      const shadowGlow = isDark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.4)';
       return (
       <Card>
         <FullBleedPhoto src={photo} />
         {sm === 'fullscreen' && <Scrim gradient="rgba(0,0,0,0.45)" />}
         {sm === 'gradient' && <Scrim gradient="linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%)" />}
-        <EssayHeader color="#fff" wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
+        <EssayHeader color={fg} wordmark={wordmark} wordmarkLogo={wordmarkLogo} eyebrow={eyebrow} />
         <div
           data-cn-field="body"
           data-cn-multiline="1"
@@ -335,15 +343,15 @@ export const ESSAY_VARIANTS = [
             fontSize: 32,
             lineHeight: 1.65,
             letterSpacing: '-0.04em',
-            color: '#fff',
+            color: fg,
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
-            textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 12px rgba(0,0,0,0.35)' : 'none',
+            textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
         >
           {body}
         </div>
-        <CardFooter left={caption} right={page} color="#fff" leftField="caption" />
+        <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       );
     },

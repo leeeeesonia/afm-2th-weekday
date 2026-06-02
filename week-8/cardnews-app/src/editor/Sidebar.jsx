@@ -1229,19 +1229,21 @@ function SummaryRowsField({ field, value, onCommit }) {
   );
 }
 
-// 텍스트 블록 글자색 팔레트 — color만 설정. 정사각형 swatch + 추후 확장용 + 버튼.
+// 텍스트 블록 글자색 팔레트 — color만 설정. 정사각형 swatch + native color picker(+).
 function TextColorPalette({ block, setProp }) {
   const SWATCHES = [
     { color: '#000000', label: '블랙' },
     { color: '#FFFFFF', label: '화이트' },
     { color: '#AAFF00', label: '네온그린' },
     { color: '#FFFABA', label: '레몬' },
+    { color: '#7599FB', label: '소라' },
   ];
   const cur = (block.props.color || '').toLowerCase();
+  const pickerRef = useRef(null);
   return (
     <div>
       <div className="t-cap text-meta-steel mb-1.5">색상 팔레트</div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {SWATCHES.map((s) => {
           const active = cur === s.color.toLowerCase();
           return (
@@ -1260,11 +1262,18 @@ function TextColorPalette({ block, setProp }) {
             />
           );
         })}
+        <input
+          ref={pickerRef}
+          type="color"
+          className="sr-only"
+          defaultValue={block.props.color || '#000000'}
+          onChange={(e) => setProp('color', e.target.value, { commit: true })}
+        />
         <button
           type="button"
-          onClick={() => alert('컬러 팔레트 추가 기능은 추후 지원 예정이에요.')}
-          title="팔레트 추가"
-          className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-stone hover:bg-meta-surface text-meta-stone text-base font-bold leading-none"
+          onClick={() => pickerRef.current?.click()}
+          title="커스텀 색상 추가"
+          className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-primary hover:text-meta-primary hover:bg-meta-surface text-meta-stone text-base font-bold leading-none transition-colors"
         >
           +
         </button>
@@ -1273,7 +1282,7 @@ function TextColorPalette({ block, setProp }) {
   );
 }
 
-// Sub Sticker 색상 팔레트 — variant prop만 설정. 4종 + 확장용 + 버튼.
+// Sub Sticker 색상 팔레트 — variant prop만 설정. 5종 + 안내용 + 버튼(variant 기반이라 커스텀 색은 SubFrame/SubInfo 권장).
 // 화이트 swatch는 outline 스타일(검정 배경 + 흰 보더 + 흰 글씨)이라 swatch도 그 모양으로 표현.
 function SubStickerColorPalette({ block, setProp }) {
   const SWATCHES = [
@@ -1281,12 +1290,13 @@ function SubStickerColorPalette({ block, setProp }) {
     { variant: 'lemon', bg: '#FFFABA', label: '레몬 (검정 글씨)' },
     { variant: 'neon', bg: '#AAFF00', label: '네온 (검정 글씨)' },
     { variant: 'white', bg: '#000000', outline: true, label: '화이트 (검정 배경 · 흰 테두리/글씨)' },
+    { variant: 'sky', bg: '#7599fb', label: '소라 (검정 글씨)' },
   ];
   const cur = block.props.variant || 'black';
   return (
     <div>
       <div className="t-cap text-meta-steel mb-1.5">색상 팔레트</div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {SWATCHES.map((s) => {
           const active = cur === s.variant;
           return (
@@ -1310,8 +1320,8 @@ function SubStickerColorPalette({ block, setProp }) {
         })}
         <button
           type="button"
-          onClick={() => alert('컬러 팔레트 추가 기능은 추후 지원 예정이에요.')}
-          title="팔레트 추가"
+          onClick={() => alert('Sub Sticker는 5종 variant 중에서 선택하세요. 커스텀 색상이 필요하면 Sub Frame을 사용해주세요.')}
+          title="Sub Sticker는 variant 기반"
           className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-stone hover:bg-meta-surface text-meta-stone text-base font-bold leading-none"
         >
           +
@@ -1321,18 +1331,29 @@ function SubStickerColorPalette({ block, setProp }) {
   );
 }
 
-// 스티커 색상 팔레트 — fill + textColor 동시 설정. 정사각형 swatch + 추후 확장용 + 버튼.
+// 스티커 색상 팔레트 — fill + textColor 동시 설정. 정사각형 swatch + native color picker(+).
+// + 클릭 시: 색 선택 → fill에 적용, textColor는 배경 luminance로 자동 결정(검정/흰색).
 function StickerColorPalette({ block, setProp }) {
   const SWATCHES = [
     { fill: '#000000', textColor: '#FFFFFF', label: '블랙' },
     { fill: '#FFFABA', textColor: '#000000', label: '레몬' },
     { fill: '#AAFF00', textColor: '#000000', label: '네온그린' },
+    { fill: '#7599FB', textColor: '#000000', label: '소라' },
   ];
   const currentFill = (block.props.fill || '').toLowerCase();
+  const pickerRef = useRef(null);
+  function autoTextColor(hex) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    return lum > 140 ? '#000000' : '#FFFFFF';
+  }
   return (
     <div>
       <div className="t-cap text-meta-steel mb-1.5">색상 팔레트</div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {SWATCHES.map((s) => {
           const active = currentFill === s.fill.toLowerCase();
           return (
@@ -1340,7 +1361,6 @@ function StickerColorPalette({ block, setProp }) {
               key={s.fill}
               type="button"
               onClick={() => {
-                // fill 즉시 동기 + textColor commit 1회로 history 묶음
                 setProp('fill', s.fill);
                 setProp('textColor', s.textColor, { commit: true });
               }}
@@ -1355,11 +1375,22 @@ function StickerColorPalette({ block, setProp }) {
             />
           );
         })}
+        <input
+          ref={pickerRef}
+          type="color"
+          className="sr-only"
+          defaultValue={block.props.fill || '#FFFFFF'}
+          onChange={(e) => {
+            const fill = e.target.value;
+            setProp('fill', fill);
+            setProp('textColor', autoTextColor(fill), { commit: true });
+          }}
+        />
         <button
           type="button"
-          onClick={() => alert('컬러 팔레트 추가 기능은 추후 지원 예정이에요.')}
-          title="팔레트 추가"
-          className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-stone hover:bg-meta-surface text-meta-stone text-base font-bold leading-none"
+          onClick={() => pickerRef.current?.click()}
+          title="커스텀 색상 추가 (글씨는 배경 명도로 자동 결정)"
+          className="h-9 w-9 rounded-md border border-dashed border-meta-hairline hover:border-meta-primary hover:text-meta-primary hover:bg-meta-surface text-meta-stone text-base font-bold leading-none transition-colors"
         >
           +
         </button>
