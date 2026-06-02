@@ -62,9 +62,7 @@ function BSBrandTopRight({ children, brandLogo }) {
         color: c,
         lineHeight: 1,
       }}
-    >
-      {children}
-    </span>
+     dangerouslySetInnerHTML={{ __html: typeof children === 'string' ? children : '' }} />
   );
 }
 
@@ -261,9 +259,7 @@ export const BS_VARIANTS = [
             minHeight: 48,
             color: themeMode === 'dark' ? '#fff' : '#000',
           }}
-        >
-          {overviewLabel}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof overviewLabel === 'string' ? overviewLabel : '' }} />
         <BodyText x={84} y={300} w={912} size={32} weight={500} lineHeight={1.6} field="body">
           {body}
         </BodyText>
@@ -497,9 +493,7 @@ export const BS_VARIANTS = [
               whiteSpace: 'pre-line',
               color: fg,
             }}
-          >
-            {title}
-          </div>
+           dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }} />
           {/* 제목 아래(top 440) ~ NovoundBottomLeft 위(bottom 200) 사이에서 2~5행 모두 자동 가운데 정렬. */}
           <div
             style={{

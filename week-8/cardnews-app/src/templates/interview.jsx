@@ -67,9 +67,7 @@ function IVTopRight({ wordmark, color, wordmarkLogo }) {
         lineHeight: 1,
         color: subColor,
       }}
-    >
-      {wordmark}
-    </span>
+     dangerouslySetInnerHTML={{ __html: typeof wordmark === 'string' ? wordmark : '' }} />
   );
 }
 
@@ -168,9 +166,7 @@ export const IV_VARIANTS = [
               whiteSpace: 'pre-line',
               wordBreak: 'keep-all',
             }}
-          >
-            {title}
-          </div>
+           dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }} />
           <div
             style={{
               alignSelf: 'flex-end',
@@ -245,9 +241,7 @@ export const IV_VARIANTS = [
               wordBreak: 'keep-all',
               textShadow: textShadow ? '0 1px 3px rgba(0,0,0,0.65), 0 2px 18px rgba(0,0,0,0.35)' : 'none',
             }}
-          >
-            {title}
-          </div>
+           dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }} />
         </div>
       </Card>
       );
@@ -323,9 +317,7 @@ export const IV_VARIANTS = [
                 wordBreak: 'keep-all',
                 color: fg,
               }}
-            >
-              {title}
-            </div>
+             dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }} />
             <div
               style={{
                 fontFamily: CN_FONT_ARCHIVO,
@@ -394,9 +386,7 @@ export const IV_VARIANTS = [
                 wordBreak: 'keep-all',
                 color: '#000',
               }}
-            >
-              {title}
-            </div>
+             dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }} />
           </div>
         </div>
         <div
@@ -443,9 +433,7 @@ export const IV_VARIANTS = [
             <span
               data-cn-field="q"
               style={{ display: 'inline-block', whiteSpace: 'nowrap' }}
-            >
-              {q}
-            </span>
+             dangerouslySetInnerHTML={{ __html: typeof q === 'string' ? q : '' }} />
           </QuestionBox>
         </div>
         <BodyText x={84} y={420} w={912} size={32} weight={500} lineHeight={1.7} field="a">
@@ -480,9 +468,7 @@ export const IV_VARIANTS = [
             <span
               data-cn-field="q"
               style={{ display: 'inline-block', whiteSpace: 'nowrap' }}
-            >
-              {q}
-            </span>
+             dangerouslySetInnerHTML={{ __html: typeof q === 'string' ? q : '' }} />
           </QuestionBox>
         </div>
         <BodyText x={84} y={920} w={912} size={32} weight={500} lineHeight={1.7} field="a">
@@ -519,9 +505,7 @@ export const IV_VARIANTS = [
               data-cn-field="q"
               data-cn-multiline="1"
               style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
-            >
-              {q}
-            </span>
+             dangerouslySetInnerHTML={{ __html: typeof q === 'string' ? q : '' }} />
           </QuestionMiddle>
         </div>
         <BottomCenter bottomY={1156}>
@@ -530,9 +514,7 @@ export const IV_VARIANTS = [
               data-cn-field="a"
               data-cn-multiline="1"
               style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
-            >
-              {a}
-            </span>
+             dangerouslySetInnerHTML={{ __html: typeof a === 'string' ? a : '' }} />
           </StandardMiddle>
         </BottomCenter>
         <IVPageOnly page={page} />
@@ -564,9 +546,7 @@ export const IV_VARIANTS = [
               data-cn-field="q"
               data-cn-multiline="1"
               style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
-            >
-              {q}
-            </span>
+             dangerouslySetInnerHTML={{ __html: typeof q === 'string' ? q : '' }} />
           </QuestionMiddle>
         </div>
         <BottomCenter bottomY={1156}>
@@ -575,9 +555,7 @@ export const IV_VARIANTS = [
               data-cn-field="a"
               data-cn-multiline="1"
               style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}
-            >
-              {a}
-            </span>
+             dangerouslySetInnerHTML={{ __html: typeof a === 'string' ? a : '' }} />
           </StandardMiddle>
         </BottomCenter>
         <IVPageOnly page={page} />

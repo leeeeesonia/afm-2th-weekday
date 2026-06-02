@@ -51,9 +51,7 @@ function EssayHeader({ eyebrow = 'Essay', color = '#000', wordmark = '@oyatlog',
             lineHeight: 1,
             color: subColor,
           }}
-        >
-          {wordmark}
-        </span>
+         dangerouslySetInnerHTML={{ __html: typeof wordmark === 'string' ? wordmark : '' }} />
       )}
     </>
   );
@@ -110,9 +108,7 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
             whiteSpace: 'pre-line',
             wordBreak: 'keep-all',
           }}
-        >
-          {title}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof title === 'string' ? title : '' }} />
         {subtitle ? (
           <div
             data-cn-field="subtitle"
@@ -127,9 +123,7 @@ function EssayCoverBase({ hAlign, vAlign, title, subtitle, photo, textColor = '#
               whiteSpace: 'pre-line',
               wordBreak: 'keep-all',
             }}
-          >
-            {subtitle}
-          </div>
+           dangerouslySetInnerHTML={{ __html: typeof subtitle === 'string' ? subtitle : '' }} />
         ) : null}
       </div>
     </Card>
@@ -305,9 +299,7 @@ export const ESSAY_VARIANTS = [
             wordBreak: 'keep-all',
             textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
-        >
-          {body}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof body === 'string' ? body : '' }} />
         <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       );
@@ -348,9 +340,7 @@ export const ESSAY_VARIANTS = [
             wordBreak: 'keep-all',
             textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
-        >
-          {body}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof body === 'string' ? body : '' }} />
         <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       );
@@ -393,9 +383,7 @@ export const ESSAY_VARIANTS = [
             letterSpacing: '0.16em',
             color: fg,
           }}
-        >
-          {eyebrow}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof eyebrow === 'string' ? eyebrow : '' }} />
         <div style={{ position: 'absolute', left: 0, right: 0, top: 540, textAlign: 'center' }}>
           <div
             data-cn-field="title"
@@ -423,9 +411,7 @@ export const ESSAY_VARIANTS = [
               letterSpacing: '-0.04em',
               color: fg,
             }}
-          >
-            {subtitle}
-          </div>
+           dangerouslySetInnerHTML={{ __html: typeof subtitle === 'string' ? subtitle : '' }} />
         </div>
         <CardFooter left={caption} right={page} leftField="caption" />
       </Card>

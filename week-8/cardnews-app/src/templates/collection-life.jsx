@@ -33,9 +33,7 @@ function CLEyebrow({ eyebrow = '수집생활', color }) {
         lineHeight: 1.2,
         color: c,
       }}
-    >
-      {eyebrow}
-    </span>
+     dangerouslySetInnerHTML={{ __html: typeof eyebrow === 'string' ? eyebrow : '' }} />
   );
 }
 
@@ -74,9 +72,7 @@ function CLCoverTopRight({ children = "Suji's Life", topRightLogo }) {
         lineHeight: 1,
         color: c,
       }}
-    >
-      {children}
-    </span>
+     dangerouslySetInnerHTML={{ __html: typeof children === 'string' ? children : '' }} />
   );
 }
 
@@ -118,9 +114,7 @@ function CLBodyTopRight({ children = 'WORKROOM', color, topRightLogo }) {
         lineHeight: 1,
         color: sub,
       }}
-    >
-      {children}
-    </span>
+     dangerouslySetInnerHTML={{ __html: typeof children === 'string' ? children : '' }} />
   );
 }
 
@@ -178,9 +172,7 @@ export const CL_VARIANTS = [
                 letterSpacing: '0.16em',
                 lineHeight: 1,
               }}
-            >
-              {wordEng}
-            </div>
+             dangerouslySetInnerHTML={{ __html: typeof wordEng === 'string' ? wordEng : '' }} />
           </div>
         </Card>
       );
@@ -227,9 +219,7 @@ export const CL_VARIANTS = [
                 letterSpacing: '0.16em',
                 lineHeight: 1,
               }}
-            >
-              {wordEng}
-            </div>
+             dangerouslySetInnerHTML={{ __html: typeof wordEng === 'string' ? wordEng : '' }} />
           </div>
         </Card>
       );
@@ -426,9 +416,7 @@ export const CL_VARIANTS = [
             wordBreak: 'keep-all',
             textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
-        >
-          {body}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof body === 'string' ? body : '' }} />
         <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       );

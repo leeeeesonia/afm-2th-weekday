@@ -65,9 +65,7 @@ function BIWordmark({ children = 'PORTER CLASSIC', color, wordmarkLogo }) {
         lineHeight: 1,
         color: resolved,
       }}
-    >
-      {children}
-    </span>
+     dangerouslySetInnerHTML={{ __html: typeof children === 'string' ? children : '' }} />
   );
 }
 
@@ -386,9 +384,7 @@ export const BI_VARIANTS = [
             wordBreak: 'keep-all',
             textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
-        >
-          {body}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof body === 'string' ? body : '' }} />
         <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       ); },
@@ -447,9 +443,7 @@ export const BI_VARIANTS = [
               StandardMiddle은 children을 그대로 렌더하므로, 내부에 data-cn-field 보유한 div를 직접 넣음. */}
           <div style={{ position: 'absolute', left: 0, right: 0, top: 720, display: 'flex', justifyContent: 'center' }}>
             <StandardMiddle w={830} size={30}>
-              <span data-cn-field="body" data-cn-multiline="1" style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }}>
-                {body}
-              </span>
+              <span data-cn-field="body" data-cn-multiline="1" style={{ display: 'inline-block', whiteSpace: 'pre-line', wordBreak: 'keep-all' }} dangerouslySetInnerHTML={{ __html: typeof body === 'string' ? body : '' }} />
             </StandardMiddle>
           </div>
           <CardFooter left={caption} right={page} leftField="caption" />
@@ -505,9 +499,7 @@ export const BI_VARIANTS = [
             wordBreak: 'keep-all',
             textShadow: textShadow ? `0 1px 3px ${shadowMain}, 0 2px 12px ${shadowGlow}` : 'none',
           }}
-        >
-          {body}
-        </div>
+         dangerouslySetInnerHTML={{ __html: typeof body === 'string' ? body : '' }} />
         <CardFooter left={caption} right={page} color={fg} leftField="caption" />
       </Card>
       ); },
