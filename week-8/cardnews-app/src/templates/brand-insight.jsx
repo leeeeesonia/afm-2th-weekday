@@ -19,8 +19,9 @@ import { StandardMiddle } from '../design/stickers.jsx';
 import { CARD_W, CARD_H, CN_FONT, CN_FONT_ARCHIVO, CN_COLORS } from '../design/tokens.js';
 
 function BIEyebrow({ eyebrow = 'Insight Note', color = '#000' }) {
+  // 우상단 한글 부제(BIEyebrowSub) / 워드마크(BIWordmark)와 사이즈·높이 동일 (size 26, top 106).
   return (
-    <Eyebrow x={84} y={99} color={color} font={CN_FONT_ARCHIVO} size={32} weight={700} tracking="0.04em" field="eyebrow">
+    <Eyebrow x={84} y={106} color={color} font={CN_FONT_ARCHIVO} size={26} weight={700} tracking="0.04em" field="eyebrow">
       {eyebrow}
     </Eyebrow>
   );

@@ -174,10 +174,11 @@ textarea.field { resize: vertical; line-height: 1.55; padding: 12px; }
 [data-cn-field][contenteditable="true"] { outline: 2px solid var(--meta-primary); outline-offset: 4px; background-color: rgba(0, 100, 224, 0.05); cursor: text; }
 [data-cn-field][contenteditable="true"]:focus { outline-color: var(--meta-primary); }
 
-/* 인라인 형광펜 — Cmd+Shift+H로 토글, 데이터 모델은 <mark class="cn-hl"> */
+/* 인라인 형광펜 — Cmd+Shift+H로 토글, 데이터 모델은 <mark class="cn-hl">.
+   하이라이트 컬러 = 소라색 #7599fb (Type 3 표지 wordEng과 동일 톤). */
 mark.cn-hl,
 [data-cn-field] mark {
-  background: linear-gradient(transparent 62%, var(--cn-neon) 62%);
+  background: linear-gradient(transparent 62%, #7599fb 62%);
   color: inherit;
   padding: 0 2px;
 }
