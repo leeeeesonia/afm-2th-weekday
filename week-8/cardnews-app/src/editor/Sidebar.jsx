@@ -97,6 +97,44 @@ export function Sidebar({ project, page, pageIndex }) {
               const hasWordmarkField = fields.some((f) => WORDMARK_FIELD_KEYS.has(f.key));
               const out = [];
               for (const f of fields) {
+                // removable 필드 (예: subhead) — `${key}Hidden` 플래그로 숨김/표시 토글, 텍스트 값은 보존
+                if (f.removable) {
+                  const hideKey = `${f.key}Hidden`;
+                  const isHidden = page.props[hideKey] === true;
+                  if (isHidden) {
+                    out.push(
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => updatePageProp(pageIndex, hideKey, false, { commit: true })}
+                        className="w-full border border-dashed border-meta-hairline rounded-xl px-4 py-3 t-cap-b text-meta-steel hover:border-meta-primary hover:text-meta-primary transition-colors"
+                      >
+                        + {f.label} 추가
+                      </button>
+                    );
+                    continue;
+                  }
+                  out.push(
+                    <div key={f.key} className="relative">
+                      <FieldEditor
+                        field={f}
+                        value={page.props[f.key] ?? ''}
+                        onChange={(v) => updatePageProp(pageIndex, f.key, v)}
+                        onCommit={(v) => updatePageProp(pageIndex, f.key, v, { commit: true })}
+                        onApplyAll={() => applyToAllPages(f.key, page.props[f.key])}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updatePageProp(pageIndex, hideKey, true, { commit: true })}
+                        title={`${f.label} 박스 숨기기 (텍스트는 보존됨)`}
+                        className="absolute top-0 right-0 -translate-y-0.5 t-cap text-meta-stone hover:text-meta-critical"
+                      >
+                        × 박스 삭제
+                      </button>
+                    </div>
+                  );
+                  continue;
+                }
                 out.push(
                   <FieldEditor
                     key={f.key}

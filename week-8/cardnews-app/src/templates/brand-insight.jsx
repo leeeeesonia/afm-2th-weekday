@@ -146,6 +146,7 @@ export const BI_VARIANTS = [
                 fontSize: 32,
                 letterSpacing: '0.18em',
                 lineHeight: 1,
+                color: '#7599fb',
               }}
               dangerouslySetInnerHTML={{ __html: typeof wordEng === 'string' ? wordEng : '' }}
             />
@@ -198,6 +199,7 @@ export const BI_VARIANTS = [
                 fontSize: 32,
                 letterSpacing: '0.18em',
                 lineHeight: 1,
+                color: '#7599fb',
               }}
               dangerouslySetInnerHTML={{ __html: typeof wordEng === 'string' ? wordEng : '' }}
             />
@@ -215,7 +217,8 @@ export const BI_VARIANTS = [
     fields: [
       ...COMMON,
       { key: 'heading', label: '큰 제목', type: 'textarea', default: '장인의 손맛이\n브랜드의 정체성이 될 때' },
-      { key: 'subhead', label: '소제목', type: 'textarea',
+      // removable — 사이드바에서 X 버튼으로 숨김/표시 토글 (subheadHidden 플래그). 텍스트는 보존.
+      { key: 'subhead', label: '소제목', type: 'textarea', removable: true,
         default: '오래 입을수록 진가가 드러나는 옷, 그 안에 담긴 철학.' },
       { key: 'body', label: '본문', type: 'textarea', default:
 `팝업 플랜을 세분화하기 위해 사전 질문지를 공유드립니다.
@@ -226,45 +229,74 @@ export const BI_VARIANTS = [
 추후 견적 및 킥오프 미팅 진행을 위한 정보이므로 니즈를 편하게
 답변해주세요!` },
     ],
-    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, subhead, highlight, highlightRest, body, themeMode }) => {
+    Component: ({ eyebrow, wordmark, wordmarkLogo, caption, page, heading, subhead, subheadHidden, highlight, highlightRest, body, themeMode }) => {
       // 기존 프로젝트 호환: highlight + highlightRest 분리 필드가 있던 시절 데이터 → subhead HTML로 합치기
       const subheadHtml = subhead || (
         highlight || highlightRest
           ? `${highlight ? `<mark class="cn-hl">${highlight}</mark>` : ''}${highlightRest || ''}`
           : ''
       );
-      // subhead는 raw div라 Card 테마 색이 자동으로 안 옴 → themeMode로 직접 적용
+      const showSubhead = !subheadHidden && typeof subheadHtml === 'string' && subheadHtml.trim() !== '';
       const fg = themeMode === 'dark' ? '#fff' : '#000';
+      // 반응형 레이아웃: 큰 제목 줄 수에 따라 자동 흐름. 절대 좌표(y=470, y=620) 대신 marginTop 사용.
+      // - 큰 제목 → marginTop 0
+      // - 소제목 → marginTop 60 (큰 제목 1줄/2줄 무관, 동일 간격 유지)
+      // - 본문   → marginTop 50 (소제목 다음) 또는 60 (소제목 숨김 시 그 자리로 올라감)
       return (
         <Card>
           <BIEyebrow eyebrow={eyebrow} />
           <BIWordmark wordmarkLogo={wordmarkLogo}>{wordmark}</BIWordmark>
-          <Heading01 x={84} y={220} w={912} size={56} field="heading">
-            {heading}
-          </Heading01>
-          {/* 소제목 — 형광·볼드는 캔버스에서 드래그 후 floating bar로 적용. 색은 테마 따름. */}
-          <div
-            data-cn-field="subhead"
-            data-cn-multiline="1"
-            style={{
-              position: 'absolute',
-              left: 84,
-              top: 470,
-              width: 912,
-              fontFamily: CN_FONT,
-              fontWeight: 700,
-              fontSize: 32,
-              letterSpacing: '-0.04em',
-              lineHeight: 1.5,
-              whiteSpace: 'pre-line',
-              wordBreak: 'keep-all',
-              color: fg,
-            }}
-            dangerouslySetInnerHTML={{ __html: subheadHtml }}
-          />
-          <BodyText x={84} y={620} w={912} size={32} weight={500} lineHeight={1.7} field="body">
-            {body}
-          </BodyText>
+          <div style={{ position: 'absolute', left: 84, right: 84, top: 220 }}>
+            <div
+              data-cn-field="heading"
+              data-cn-multiline="1"
+              style={{
+                fontFamily: CN_FONT,
+                fontWeight: 800,
+                fontSize: 56,
+                lineHeight: 1.2,
+                letterSpacing: '-0.045em',
+                whiteSpace: 'pre-line',
+                wordBreak: 'keep-all',
+                color: fg,
+              }}
+              dangerouslySetInnerHTML={{ __html: typeof heading === 'string' ? heading : '' }}
+            />
+            {showSubhead && (
+              <div
+                data-cn-field="subhead"
+                data-cn-multiline="1"
+                style={{
+                  marginTop: 60,
+                  fontFamily: CN_FONT,
+                  fontWeight: 700,
+                  fontSize: 32,
+                  letterSpacing: '-0.04em',
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-line',
+                  wordBreak: 'keep-all',
+                  color: fg,
+                }}
+                dangerouslySetInnerHTML={{ __html: subheadHtml }}
+              />
+            )}
+            <div
+              data-cn-field="body"
+              data-cn-multiline="1"
+              style={{
+                marginTop: showSubhead ? 50 : 60,
+                fontFamily: CN_FONT,
+                fontWeight: 500,
+                fontSize: 32,
+                letterSpacing: '-0.04em',
+                lineHeight: 1.7,
+                whiteSpace: 'pre-line',
+                wordBreak: 'keep-all',
+                color: fg,
+              }}
+              dangerouslySetInnerHTML={{ __html: typeof body === 'string' ? body : '' }}
+            />
+          </div>
           <CardFooter left={caption} right={page} leftField="caption" />
         </Card>
       );
