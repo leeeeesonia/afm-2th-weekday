@@ -280,11 +280,15 @@ export function BlockRenderer({ block, allBlocks = [], selectedBlockIds = [], sc
     }
 
     function onPointerDown(e) {
-      // 텍스트 편집 중이면 drag 안 함
-      if (e.target.closest('[data-block-text]') && e.target.getAttribute('contenteditable') === 'true') {
+      // 텍스트/스티커 편집 중이면 drag 안 함 — contenteditable 속성은 e.target이 아닌
+      // closest로 찾은 EDITABLE element 자체에서 검사해야 함. (자식 노드 클릭 시 e.target엔
+      // contenteditable 속성이 없어 가드가 작동 안 하던 버그 수정 → 텍스트 드래그 선택 가능)
+      const editableTextEl = e.target.closest('[data-block-text]');
+      if (editableTextEl && editableTextEl.getAttribute('contenteditable') === 'true') {
         return;
       }
-      if (e.target.closest('[data-cn-sticker-text]') && e.target.getAttribute('contenteditable') === 'true') {
+      const editableStickerEl = e.target.closest('[data-cn-sticker-text]');
+      if (editableStickerEl && editableStickerEl.getAttribute('contenteditable') === 'true') {
         return;
       }
       // 카메라 버튼 / 인플레이스 컨트롤 위 클릭이면 drag 시작 안 함
