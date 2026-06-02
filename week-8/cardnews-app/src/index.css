@@ -175,12 +175,16 @@ textarea.field { resize: vertical; line-height: 1.55; padding: 12px; }
 [data-cn-field][contenteditable="true"]:focus { outline-color: var(--meta-primary); }
 
 /* 인라인 형광펜 — Cmd+Shift+H로 토글, 데이터 모델은 <mark class="cn-hl">.
-   하이라이트 컬러 = 소라색 #7599fb (Type 3 표지 wordEng과 동일 톤). */
+   라이트/다크: 소라색 #7599fb · 파스텔: 흰색 (배경이 #CFD9E1 소라톤이라 같은 색이면 안 보임). */
 mark.cn-hl,
 [data-cn-field] mark {
   background: linear-gradient(transparent 62%, #7599fb 62%);
   color: inherit;
   padding: 0 2px;
+}
+[data-cn-theme="pastel"] mark.cn-hl,
+[data-cn-theme="pastel"] [data-cn-field] mark {
+  background: linear-gradient(transparent 62%, #FFFFFF 62%);
 }
 /* 본문 부분 볼드 — Cmd+B (execCommand가 strong/b 둘 다 생성 가능) */
 [data-cn-field] b,
