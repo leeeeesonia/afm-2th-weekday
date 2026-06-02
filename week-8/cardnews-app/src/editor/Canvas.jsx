@@ -233,9 +233,10 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
     function onMouseDown(e) {
       const el = findTarget(e);
       if (!el) {
-        // 다른 곳 클릭 → 기존 editing blur
+        // 활성 contenteditable이 있고, 그 안을 클릭한 거면 blur 금지 (드래그 선택 등 정상 흐름 보존).
+        // 텍스트 블록(data-block-text) 안 드래그 선택이 이 가드 없이는 강제 blur로 끊겼던 버그 수정.
         const active = root.querySelector('[contenteditable="true"]');
-        if (active) active.blur();
+        if (active && !active.contains(e.target)) active.blur();
         const isBlockClick = e.target.closest('[data-block-overlay] > div');
         if (!isBlockClick) {
           // 블록 위 아닌 빈 곳 → marquee 시작 (Shift 누른 상태면 기존 선택 유지)
