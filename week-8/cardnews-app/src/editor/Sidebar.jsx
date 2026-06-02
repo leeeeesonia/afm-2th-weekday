@@ -127,7 +127,7 @@ export function Sidebar({ project, page, pageIndex }) {
                         type="button"
                         onClick={() => updatePageProp(pageIndex, hideKey, true, { commit: true })}
                         title={`${f.label} 박스 숨기기 (텍스트는 보존됨)`}
-                        className="absolute top-0 right-0 -translate-y-0.5 t-cap text-meta-stone hover:text-meta-critical"
+                        className="absolute top-0 right-[72px] -translate-y-0.5 t-cap text-meta-stone hover:text-meta-critical"
                       >
                         × 박스 삭제
                       </button>
