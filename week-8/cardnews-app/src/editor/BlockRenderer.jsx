@@ -833,6 +833,13 @@ export function BlockRenderer({ block, allBlocks = [], selectedBlockIds = [], sc
       setEditingText(false);
     }
     function onKey(e) {
+      const meta = e.metaKey || e.ctrlKey;
+      // Cmd+B / Ctrl+B → 볼드 토글 (브라우저 default 보강 — 일부 환경에서 무시되는 케이스 대비)
+      if (meta && !e.shiftKey && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        document.execCommand('bold');
+        return;
+      }
       if (e.key === 'Escape') {
         inner.blur();
       }
@@ -842,10 +849,13 @@ export function BlockRenderer({ block, allBlocks = [], selectedBlockIds = [], sc
       const text = e.clipboardData?.getData('text/plain') || '';
       document.execCommand('insertText', false, text);
     }
+    // FormatBar(Canvas의 떠있는 B/H 툴바)가 텍스트 블록 선택에도 반응하도록 활성 element 알림
+    window.dispatchEvent(new CustomEvent('cn-text-edit-start', { detail: inner }));
     inner.addEventListener('blur', onBlur);
     inner.addEventListener('keydown', onKey);
     inner.addEventListener('paste', onPaste);
     return () => {
+      window.dispatchEvent(new CustomEvent('cn-text-edit-end'));
       inner.removeEventListener('blur', onBlur);
       inner.removeEventListener('keydown', onKey);
       inner.removeEventListener('paste', onPaste);

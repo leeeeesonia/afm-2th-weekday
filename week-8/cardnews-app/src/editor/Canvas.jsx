@@ -181,6 +181,17 @@ export function Canvas({ project, page, pageIndex, scale, editable = true, idPre
     window.addEventListener('cn-snap-guides', on);
     return () => window.removeEventListener('cn-snap-guides', on);
   }, []);
+  // 텍스트 블록 편집 진입/종료 시 BlockRenderer가 dispatch하는 이벤트 → activeEl 동기 → FormatBar 활성
+  React.useEffect(() => {
+    function onStart(e) { setActiveEl(e.detail || null); }
+    function onEnd() { setActiveEl(null); }
+    window.addEventListener('cn-text-edit-start', onStart);
+    window.addEventListener('cn-text-edit-end', onEnd);
+    return () => {
+      window.removeEventListener('cn-text-edit-start', onStart);
+      window.removeEventListener('cn-text-edit-end', onEnd);
+    };
+  }, []);
 
   useEffect(() => {
     if (!editable) return;

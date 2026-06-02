@@ -21,7 +21,7 @@ export function newTextBlock(props = {}) {
     props: {
       html: '여기에 텍스트를 입력하세요',
       fontSize: 30,
-      fontWeight: 500,
+      fontWeight: 400,
       color: '#000000',
       align: 'left',
       lineHeight: 1.2,
