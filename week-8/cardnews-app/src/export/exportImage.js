@@ -21,20 +21,40 @@ async function ensureFonts() {
   }
 }
 
+// 모든 후손 노드의 box-shadow / mix-blend-mode를 임시로 무력화.
+// html-to-image(SVG foreignObject 기반)가 이 두 속성을 잘못 렌더해 export 결과가 어두워지는 이슈 회피.
+// - box-shadow: 에디터 UI용 카드 부유 그림자가 SVG 렌더 시 안쪽으로 흡수되어 어둡게 나옴
+// - mix-blend-mode: 파스텔 모드 크라프트지 텍스처(multiply)가 SVG 컨텍스트에서 과도하게 어두워짐
+function neutralizeDarkenersForExport(rootEl) {
+  const restore = [];
+  function clear(node) {
+    if (!node || !node.style) return;
+    if (node.style.boxShadow && node.style.boxShadow !== 'none') {
+      const prev = node.style.boxShadow;
+      node.style.boxShadow = 'none';
+      restore.push(() => { node.style.boxShadow = prev; });
+    }
+    if (node.style.mixBlendMode && node.style.mixBlendMode !== 'normal' && node.style.mixBlendMode !== '') {
+      const prev = node.style.mixBlendMode;
+      node.style.mixBlendMode = 'normal';
+      restore.push(() => { node.style.mixBlendMode = prev; });
+    }
+  }
+  clear(rootEl);
+  rootEl.querySelectorAll('*').forEach(clear);
+  return restore;
+}
+
 async function renderPageToBlob(pageId, scale = 2) {
   await ensureFonts();
   const el = findOriginalEl(pageId);
   if (!el) throw new Error('현재 페이지를 찾을 수 없습니다 (slide 뷰에서 export 가능)');
 
-  // transform을 끄고 픽셀 단위로 캡처.
-  // box-shadow도 임시 제거 — 에디터에서 카드 부유감용으로 큰 drop shadow가 있는데,
-  // html-to-image가 SVG foreignObject로 렌더할 때 그림자 영역까지 포함시켜 결과가 전체적으로 어두워지는 버그가 있음.
   const prevTransform = el.style.transform;
   const prevOrigin = el.style.transformOrigin;
-  const prevBoxShadow = el.style.boxShadow;
   el.style.transform = 'none';
   el.style.transformOrigin = 'top left';
-  el.style.boxShadow = 'none';
+  const restoreDark = neutralizeDarkenersForExport(el);
 
   try {
     const dataUrl = await toJpeg(el, {
@@ -52,7 +72,7 @@ async function renderPageToBlob(pageId, scale = 2) {
   } finally {
     el.style.transform = prevTransform;
     el.style.transformOrigin = prevOrigin;
-    el.style.boxShadow = prevBoxShadow;
+    for (const fn of restoreDark) fn();
   }
 }
 
@@ -77,15 +97,16 @@ async function renderPageToPngBlob(pageId, scale = 2, transparent = false) {
     restoreFns.push(() => Object.assign(node.style, prev));
   }
 
-  // 1) 스케일 끔 + 캔버스 루트 박스섀도 제거 (항상 — 에디터 UI용 그림자라 export엔 불필요).
-  //    JPG/non-transparent PNG도 box-shadow를 SVG 렌더 시 머금어 전체적으로 어두워지는 이슈 회피.
+  // 1) 스케일 끔
   override(el, {
     transform: 'none',
     transformOrigin: 'top left',
-    boxShadow: 'none',
     background: transparent ? 'transparent' : el.style.background,
     backgroundColor: transparent ? 'transparent' : el.style.backgroundColor,
   });
+  // 1b) 모든 후손 box-shadow / mix-blend-mode 무력화 — html-to-image 어두워짐 회피
+  const darkRestore = neutralizeDarkenersForExport(el);
+  restoreFns.push(...darkRestore);
 
   // 2) 투명 모드 — 내부 Card([data-cn-theme]) + BackgroundFill 등 후손 노드의 단색 배경 전부 끔
   if (transparent) {
