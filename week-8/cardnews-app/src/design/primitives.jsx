@@ -103,6 +103,7 @@ export function KraftPaperTexture() {
   return (
     <div
       aria-hidden
+      data-cn-kraft="1"
       style={{
         position: 'absolute',
         inset: 0,

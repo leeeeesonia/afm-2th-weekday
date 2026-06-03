@@ -42,6 +42,15 @@ function neutralizeDarkenersForExport(rootEl) {
   }
   clear(rootEl);
   rootEl.querySelectorAll('*').forEach(clear);
+  // 파스텔 모드 크라프트지 텍스처는 export에서 통째로 숨김.
+  // 갈색 노이즈 SVG가 opacity 0.32로 깔리는데, multiply blend가 SVG foreignObject에선 어둡게 합성되어
+  // export 결과가 전체적으로 어두워짐. 사용자 의도(깔끔한 파스텔 배경)에 맞춰 텍스처는 export에서 제외.
+  rootEl.querySelectorAll('[data-cn-kraft]').forEach((node) => {
+    if (!node.style) return;
+    const prev = node.style.display;
+    node.style.display = 'none';
+    restore.push(() => { node.style.display = prev; });
+  });
   return restore;
 }
 
