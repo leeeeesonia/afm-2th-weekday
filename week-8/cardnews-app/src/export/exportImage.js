@@ -26,11 +26,15 @@ async function renderPageToBlob(pageId, scale = 2) {
   const el = findOriginalEl(pageId);
   if (!el) throw new Error('현재 페이지를 찾을 수 없습니다 (slide 뷰에서 export 가능)');
 
-  // transform을 끄고 픽셀 단위로 캡처
+  // transform을 끄고 픽셀 단위로 캡처.
+  // box-shadow도 임시 제거 — 에디터에서 카드 부유감용으로 큰 drop shadow가 있는데,
+  // html-to-image가 SVG foreignObject로 렌더할 때 그림자 영역까지 포함시켜 결과가 전체적으로 어두워지는 버그가 있음.
   const prevTransform = el.style.transform;
   const prevOrigin = el.style.transformOrigin;
+  const prevBoxShadow = el.style.boxShadow;
   el.style.transform = 'none';
   el.style.transformOrigin = 'top left';
+  el.style.boxShadow = 'none';
 
   try {
     const dataUrl = await toJpeg(el, {
@@ -48,6 +52,7 @@ async function renderPageToBlob(pageId, scale = 2) {
   } finally {
     el.style.transform = prevTransform;
     el.style.transformOrigin = prevOrigin;
+    el.style.boxShadow = prevBoxShadow;
   }
 }
 
@@ -72,11 +77,12 @@ async function renderPageToPngBlob(pageId, scale = 2, transparent = false) {
     restoreFns.push(() => Object.assign(node.style, prev));
   }
 
-  // 1) 스케일 끔 + 캔버스 루트 박스섀도 제거
+  // 1) 스케일 끔 + 캔버스 루트 박스섀도 제거 (항상 — 에디터 UI용 그림자라 export엔 불필요).
+  //    JPG/non-transparent PNG도 box-shadow를 SVG 렌더 시 머금어 전체적으로 어두워지는 이슈 회피.
   override(el, {
     transform: 'none',
     transformOrigin: 'top left',
-    boxShadow: transparent ? 'none' : el.style.boxShadow,
+    boxShadow: 'none',
     background: transparent ? 'transparent' : el.style.background,
     backgroundColor: transparent ? 'transparent' : el.style.backgroundColor,
   });
